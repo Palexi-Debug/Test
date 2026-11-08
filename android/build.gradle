@@ -45,6 +45,16 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
+// Android-Lint stürzt in CI bei manchen Plugins ab (Lint-Bug) und wird für APK-Builds nicht gebraucht
+subprojects {
+    tasks.configureEach { task ->
+        if (task.name.startsWith('lintVital') || task.name.startsWith('lintAnalyze')
+                || task.name.startsWith('lintReport') || task.name == 'lint') {
+            task.enabled = false
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
