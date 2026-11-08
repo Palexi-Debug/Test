@@ -13,14 +13,49 @@ class Themes {
   static Themes getNewTheme(Color seedColor) {
     // The basic theme, global theme data changes should be put here.
     ThemeData basicTheme(Brightness brightness) {
+      final colorScheme = ColorScheme.fromSeed(
+        seedColor: seedColor,
+        brightness: brightness,
+      );
+      final roundedShape = RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      );
       return ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seedColor,
-          brightness: brightness,
+        useMaterial3: true,
+        colorScheme: colorScheme,
+        // Eigenes Aussehen: weiche, runde Karten ohne Schatten
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: roundedShape,
+          color: colorScheme.surfaceContainerHigh,
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         ),
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
+        // Eingabefelder (Login) gefüllt und abgerundet
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: colorScheme.surfaceContainerHighest,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          ),
         ),
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          scrolledUnderElevation: 0,
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            minimumSize: const Size(64, 48),
+          ),
+        ),
+        listTileTheme: ListTileThemeData(shape: roundedShape),
       );
     }
 
@@ -48,7 +83,7 @@ class Themes {
   // Will be set by ColorModeNotifier.init() or _getSchoolTheme() in client.dart.
   static Themes schoolTheme = Themes(null, null);
 
-  static Themes standardTheme = getNewTheme(Colors.deepPurple);
+  static Themes standardTheme = getNewTheme(Colors.indigo);
 
   static Themes getAmoledThemes(Themes themes) {
     // Colors for Amoled Mode
