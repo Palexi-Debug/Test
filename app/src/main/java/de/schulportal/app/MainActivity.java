@@ -44,13 +44,15 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                String host = uri.getHost();
-                if (host != null && (host.equals("schulportal.hessen.de")
-                        || host.endsWith(".schulportal.hessen.de"))) {
-                    return false; // im Portal bleiben
+                String scheme = uri.getScheme();
+                if ("http".equals(scheme) || "https".equals(scheme)) {
+                    return false; // alle Webseiten (auch Login-Weiterleitungen) in der App lassen
                 }
-                // Alles andere im Standard-Browser öffnen
-                startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                // Nur mailto:, tel: usw. an andere Apps geben
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                } catch (Exception ignored) {
+                }
                 return true;
             }
 
