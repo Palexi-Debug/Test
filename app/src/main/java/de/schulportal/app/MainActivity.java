@@ -36,6 +36,21 @@ public class MainActivity extends Activity {
         s.setBuiltInZoomControls(true);
         s.setDisplayZoomControls(false);
 
+        // Dunkelmodus: folgt der Systemeinstellung des Handys
+        boolean night = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        webView.setBackgroundColor(night ? 0xFF121212 : 0xFFFFFFFF);
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(
+                androidx.webkit.WebViewFeature.ALGORITHMIC_DARKENING)) {
+            androidx.webkit.WebSettingsCompat.setAlgorithmicDarkeningAllowed(s, night);
+        } else if (androidx.webkit.WebViewFeature.isFeatureSupported(
+                androidx.webkit.WebViewFeature.FORCE_DARK)) {
+            androidx.webkit.WebSettingsCompat.setForceDark(s, night
+                    ? androidx.webkit.WebSettingsCompat.FORCE_DARK_ON
+                    : androidx.webkit.WebSettingsCompat.FORCE_DARK_OFF);
+        }
+
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
         cm.setAcceptThirdPartyCookies(webView, true);
