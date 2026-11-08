@@ -12,6 +12,7 @@ import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/utils/responsive.dart';
 import 'package:lanis/utils/whats_new.dart';
 import 'package:lanis/view/settings/settings_page_builder.dart';
+import 'package:lanis/view/settings/start_page.dart';
 import 'package:lanis/view/settings/subsettings/cache.dart';
 import 'package:lanis/widgets/press_tile.dart';
 
@@ -135,6 +136,12 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
               }
               return false;
             },
+          ),
+          SettingsTile(
+            title: (context) => 'Startseite',
+            subtitle: (context) async => 'Welcher Bereich zuerst geöffnet wird',
+            icon: Icons.home_rounded,
+            screen: (context) async => showStartPageDialog(context),
           ),
           SettingsTile(
             title: (context) => AppLocalizations.of(context).notifications,

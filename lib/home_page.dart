@@ -17,6 +17,8 @@ import 'package:lanis/utils/responsive.dart';
 import 'package:lanis/utils/safe_launch.dart';
 import 'package:lanis/utils/server_status.dart';
 import 'package:lanis/utils/whats_new.dart';
+import 'package:lanis/view/server_status_page.dart';
+import 'package:lanis/view/settings/start_page.dart';
 import 'package:lanis/widgets/applet_home_shell.dart';
 
 /// Nested home applet paths (order matches bottom-nav / shell branches).
@@ -32,7 +34,18 @@ List<String> get homeAppletPhpUrls =>
 String firstSupportedHomePathFor({
   required Set<String> supported,
   required AccountType accountType,
+  String? preferredPathSegment,
 }) {
+  // Vom Nutzer gewählte Startseite (Einstellungen > Startseite)
+  if (preferredPathSegment != null && preferredPathSegment.isNotEmpty) {
+    for (final def in AppDefinitions.homeApplets) {
+      if (def.pathSegment == preferredPathSegment &&
+          supported.contains(def.appletPhpUrl) &&
+          def.supportedAccountTypes.contains(accountType)) {
+        return appletHomePath(def, accountType);
+      }
+    }
+  }
   for (final def in AppDefinitions.homeApplets) {
     if (supported.contains(def.appletPhpUrl) &&
         def.supportedAccountTypes.contains(accountType)) {
@@ -48,6 +61,9 @@ String firstSupportedHomePath(WidgetRef ref) {
     supported: ref.read(supportedAppletPhpUrlsProvider),
     accountType:
         ref.read(activeAccountProvider)?.accountType ?? AccountType.student,
+    preferredPathSegment: ref
+        .read(sharedOverAccountSettingsProvider)
+        .getString(startPageSettingKey),
   );
 }
 
@@ -57,6 +73,9 @@ String firstSupportedHomePathFromRef(Ref ref) {
     supported: ref.read(supportedAppletPhpUrlsProvider),
     accountType:
         ref.read(activeAccountProvider)?.accountType ?? AccountType.student,
+    preferredPathSegment: ref
+        .read(sharedOverAccountSettingsProvider)
+        .getString(startPageSettingKey),
   );
 }
 
@@ -175,10 +194,6 @@ class HomePageState extends ConsumerState<HomePage> {
               padding: const EdgeInsets.all(32),
               child: Text(AppLocalizations.of(context).noSupportOpenInBrowser),
             ),
-            ElevatedButton(
-              onPressed: _openLanisInBrowser,
-              child: Text(AppLocalizations.of(context).openLanisInBrowser),
-            ),
           ],
         ),
       ),
@@ -248,22 +263,6 @@ class HomePageState extends ConsumerState<HomePage> {
     }
 
     items.add((
-      label: AppLocalizations.of(context).openMoodle,
-      icon: const Icon(Icons.open_in_new),
-      selectedIcon: const Icon(Icons.open_in_new),
-      enabled: true,
-      branchIndex: null,
-      onTap: () => context.push(SettingsDeepLinks.moodle),
-    ));
-    items.add((
-      label: AppLocalizations.of(context).openLanisInBrowser,
-      icon: const Icon(Icons.open_in_new),
-      selectedIcon: const Icon(Icons.open_in_new),
-      enabled: true,
-      branchIndex: null,
-      onTap: _openLanisInBrowser,
-    ));
-    items.add((
       label: AppLocalizations.of(context).settings,
       icon: const Icon(Icons.settings),
       selectedIcon: const Icon(Icons.settings),
@@ -285,11 +284,7 @@ class HomePageState extends ConsumerState<HomePage> {
       selectedIcon: const Icon(Icons.dns_outlined),
       enabled: true,
       branchIndex: null,
-      onTap: () => safeLaunchUrl(
-        Uri.parse(serverStatusUrl),
-        context: context,
-        mode: LaunchMode.externalApplication,
-      ),
+      onTap: () => openServerStatus(context),
     ));
 
     return items;

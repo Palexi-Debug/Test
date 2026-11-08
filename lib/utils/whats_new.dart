@@ -31,92 +31,47 @@ int compareVersions(String version1, String version2) {
   return 0;
 }
 
+/// Zeigt Version und Build-Nummer dieser App an (lokal, ohne Netzwerk).
 Future<ReleaseNotesScreen?> showLocalUpdateInfo(
   BuildContext context, {
   bool dialog = true,
 }) async {
-  if (dialog) {
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(AppLocalizations.of(context).loading),
-        children: [Center(child: CircularProgressIndicator())],
-      ),
-    );
-  }
-  final deviceReleaseTag = await getDeviceReleaseTag();
+  final packageInfo = await PackageInfo.fromPlatform();
+  const buildId = String.fromEnvironment('BUILD_ID', defaultValue: 'dev');
   if (!context.mounted) return null;
-  final shared = ProviderScope.containerOf(
-    context,
-  ).read(sharedOverAccountSettingsProvider);
-  shared.setString('last-app-version', deviceReleaseTag);
-  final deviceReleaseInfo = await getReleaseInfo(deviceReleaseTag);
-  // Loading dialog uses the root navigator; do not pop the settings route.
-  if (context.mounted && dialog) popRootDialog(context);
-  if (deviceReleaseInfo == null) return null;
-  if (context.mounted) {
-    if (dialog) {
-      showDialog(
-        context: context,
-        builder: (context) => ReleaseNotesScreen(deviceReleaseInfo),
-      );
-    } else {
-      return ReleaseNotesScreen(deviceReleaseInfo, showBack: dialog);
-    }
-  }
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(AppLocalizations.of(dialogContext).inThisUpdate),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Build $buildId',
+            style: Theme.of(dialogContext).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text('Version ${packageInfo.version} (${packageInfo.buildNumber})'),
+          const SizedBox(height: 16),
+          const Text('Diese App basiert auf Lanis Mobile (GPLv3).'),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
   return null;
 }
 
+/// Deaktiviert: Die Update-Prüfung von Lanis Mobile würde auf das Original
+/// verweisen und passt nicht zu den Build-Nummern dieser App.
 void showUpdateInfoIfRequired(BuildContext context) async {
-  final PackageInfo packageInfo = await PackageInfo.fromPlatform();
-  if (packageInfo.installerStore != "com.google.vending" &&
-      packageInfo.installerStore != null &&
-      Platform.isAndroid) {
-    logger.i(
-      "App was installed by: \"${packageInfo.installerStore}\"! Skipping version check.",
-    );
-    return;
-  }
-  if (!context.mounted) return;
-  final shared = ProviderScope.containerOf(
-    context,
-  ).read(sharedOverAccountSettingsProvider);
-  final latestReleaseInfo = await getReleaseInfo(null);
-  if (latestReleaseInfo == null) return;
-  final String latestReleaseTag = latestReleaseInfo['tag_name'];
-  final String deviceReleaseTag = await getDeviceReleaseTag();
-  final String? storageReleaseTag = shared.getString('last-app-version');
-  shared.setString('last-app-version', deviceReleaseTag);
-
-  if (storageReleaseTag != deviceReleaseTag) {
-    shared.setString('last-app-version', deviceReleaseTag);
-    if (latestReleaseTag == deviceReleaseTag && context.mounted) {
-      await showDialog(
-        context: context,
-        builder: (context) => ReleaseNotesScreen(latestReleaseInfo),
-      );
-    } else {
-      final deviceReleaseInfo = await getReleaseInfo(deviceReleaseTag);
-      if (deviceReleaseInfo == null || !context.mounted) return;
-      await showDialog(
-        context: context,
-        builder: (context) => ReleaseNotesScreen(deviceReleaseInfo),
-      );
-    }
-  }
-
-  if (compareVersions(latestReleaseTag, deviceReleaseTag) > 0 &&
-      context.mounted) {
-    await showDialog(
-      context: context,
-      builder: (context) => NewUpdateAvailableDialog(
-        deviceReleaseTag: deviceReleaseTag,
-        latestReleaseTag: latestReleaseTag,
-        releaseInfo: latestReleaseInfo,
-      ),
-    );
-  }
+  return;
 }
 
 Future<String> getDeviceReleaseTag() async {

@@ -13,6 +13,7 @@ import 'package:lanis/widgets/offline_available_applets_section.dart';
 import 'package:lanis/widgets/reset_account_page.dart';
 import 'package:lanis/utils/safe_launch.dart';
 import 'package:lanis/utils/server_status.dart';
+import 'package:lanis/view/server_status_page.dart';
 
 /// Splash / auth progress / recoverable auth errors.
 class StartupScreen extends ConsumerStatefulWidget {
@@ -179,10 +180,7 @@ class StartupAuthErrorContent extends StatelessWidget {
               children: [
                 IconButton(
                   icon: const Icon(Icons.wifi_find_outlined),
-                  onPressed: () => safeLaunchUrl(
-                    Uri.parse(serverStatusUrl),
-                    context: context,
-                  ),
+                  onPressed: () => openServerStatus(context),
                   tooltip: l10n.checkStatus,
                 ),
                 Icon(isOffline ? Icons.wifi_off : Icons.error, size: 48),

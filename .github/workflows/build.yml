@@ -14,6 +14,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle*
+            android/gradle/wrapper/gradle-wrapper.properties
+            pubspec.yaml
 
       - uses: subosito/flutter-action@v2
         with:
@@ -34,7 +39,7 @@ jobs:
 
       - name: Build release APK (arm64)
         run: >
-          flutter build apk --release --target-platform android-arm64
+          flutter build apk --release --no-shrink --target-platform android-arm64
           --build-name=1.0.${{ github.run_number }}
           --build-number=$((1000 + ${{ github.run_number }}))
           --dart-define=cronetHttpNoPlay=true

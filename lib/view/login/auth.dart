@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,7 +37,7 @@ class LoginFormState extends ConsumerState<LoginForm> {
   );
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  bool dseAgree = false;
+  bool dseAgree = true; // Zustimmungs-Checkboxen entfernt
   bool errorReportingAgree = false;
   String selectedSchoolName = fixedSchoolName;
 
@@ -263,69 +262,6 @@ class LoginFormState extends ConsumerState<LoginForm> {
                               }
                               return null;
                             },
-                          ),
-                          const SizedBox(height: padding),
-                          Visibility(
-                            child: ExcludeSemantics(
-                              child: CheckboxListTile(
-                                enabled: schoolIDController.text.isNotEmpty,
-                                value: dseAgree,
-                                title: RichText(
-                                  text: TextSpan(
-                                    text: AppLocalizations.of(
-                                      context,
-                                    ).authIAccept,
-                                    style: DefaultTextStyle.of(context).style,
-                                    children: <TextSpan>[
-                                      TextSpan(
-                                        text: AppLocalizations.of(
-                                          context,
-                                        ).authTermsOfService,
-                                        style: TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                        ),
-                                        recognizer: TapGestureRecognizer()
-                                          ..onTap = () => safeLaunchUrl(
-                                            Uri.parse(privacyPolicyUrl),
-                                            context: context,
-                                          ),
-                                      ),
-                                      TextSpan(
-                                        text: AppLocalizations.of(
-                                          context,
-                                        ).authOfLanisMobile,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                onChanged: (val) {
-                                  setState(() {
-                                    dseAgree = val!;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
-                          Visibility(
-                            child: ExcludeSemantics(
-                              child: CheckboxListTile(
-                                enabled: schoolIDController.text.isNotEmpty,
-                                value: errorReportingAgree,
-                                title: Text(
-                                  AppLocalizations.of(
-                                    context,
-                                  ).authErrorReportingOptional,
-                                  style: DefaultTextStyle.of(context).style,
-                                ),
-                                onChanged: (val) {
-                                  setState(() {
-                                    errorReportingAgree = val!;
-                                  });
-                                },
-                              ),
-                            ),
                           ),
                           const SizedBox(height: padding),
                           FilledButton(
