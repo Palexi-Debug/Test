@@ -27,6 +27,11 @@ class LoginFormState extends ConsumerState<LoginForm> {
   // Diese App ist fest auf eine Schule eingestellt.
   static const String fixedSchoolId = '6110';
   static const String fixedSchoolName = 'Philipp-Reis-Schule';
+  // Build-Nummer aus GitHub Actions, damit man die installierte Version erkennt
+  static const String buildId = String.fromEnvironment(
+    'BUILD_ID',
+    defaultValue: 'dev',
+  );
 
   TextEditingController schoolIDController = TextEditingController(
     text: fixedSchoolId,
@@ -207,12 +212,14 @@ class LoginFormState extends ConsumerState<LoginForm> {
                             ),
                           ),
                           const SizedBox(height: padding * 5),
-                          const Card(
+                          Card(
                             margin: EdgeInsets.zero,
                             child: ListTile(
-                              leading: Icon(Icons.school),
-                              title: Text('Philipp-Reis-Schule'),
-                              subtitle: Text('Schulportal Hessen · ID 6110'),
+                              leading: const Icon(Icons.school),
+                              title: const Text(fixedSchoolName),
+                              subtitle: Text(
+                                'Schulportal Hessen · ID $fixedSchoolId · Build $buildId',
+                              ),
                             ),
                           ),
                           const SizedBox(height: padding),
