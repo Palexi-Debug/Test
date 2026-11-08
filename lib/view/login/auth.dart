@@ -10,7 +10,6 @@ import 'package:lanis/utils/logger.dart';
 import 'package:lanis/utils/glitchtip.dart';
 import 'package:lanis/utils/privacy_policy.dart';
 import 'package:lanis/utils/safe_launch.dart';
-import 'package:lanis/view/login/school_selector.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -25,12 +24,18 @@ class LoginFormState extends ConsumerState<LoginForm> {
 
   final _formKey = GlobalKey<FormState>();
 
-  TextEditingController schoolIDController = TextEditingController();
+  // Diese App ist fest auf eine Schule eingestellt.
+  static const String fixedSchoolId = '6110';
+  static const String fixedSchoolName = 'Philipp-Reis-Schule';
+
+  TextEditingController schoolIDController = TextEditingController(
+    text: fixedSchoolId,
+  );
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   bool dseAgree = false;
   bool errorReportingAgree = false;
-  String selectedSchoolName = "";
+  String selectedSchoolName = fixedSchoolName;
 
   @override
   void initState() {
@@ -202,13 +207,13 @@ class LoginFormState extends ConsumerState<LoginForm> {
                             ),
                           ),
                           const SizedBox(height: padding * 5),
-                          SchoolSelector(
-                            controller: schoolIDController,
-                            outContext: context,
-                            onSchoolSelected: (name) {
-                              selectedSchoolName = name;
-                              setState(() {});
-                            },
+                          const Card(
+                            margin: EdgeInsets.zero,
+                            child: ListTile(
+                              leading: Icon(Icons.school),
+                              title: Text('Philipp-Reis-Schule'),
+                              subtitle: Text('Schulportal Hessen · ID 6110'),
+                            ),
                           ),
                           const SizedBox(height: padding),
                           TextFormField(
