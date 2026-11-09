@@ -35,7 +35,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
       final accounts = await ref.read(accountsProvider.future);
       if (!mounted) return;
       if (accounts.isEmpty) {
-        context.go('/welcome');
+        context.go('/login');
         return;
       }
 

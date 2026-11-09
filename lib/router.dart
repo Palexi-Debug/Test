@@ -13,7 +13,8 @@ import 'package:lanis/view/account_switcher/account_switcher.dart';
 import 'package:lanis/utils/privacy_policy.dart';
 import 'package:lanis/utils/glitchtip_navigation.dart';
 import 'package:lanis/view/login/auth.dart';
-import 'package:lanis/view/login/screen.dart';
+import 'package:lanis/view/dashboard/dashboard_page.dart';
+import 'package:lanis/view/wear/wear_substitutions_page.dart';
 import 'package:lanis/view/moodle.dart';
 import 'package:lanis/view/privacy_policy/privacy_policy_screen.dart';
 import 'package:lanis/view/settings/settings_routes.dart';
@@ -192,14 +193,20 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/privacy-policy',
         builder: (context, state) => const PrivacyPolicyScreen(),
       ),
-      GoRoute(
-        path: '/welcome',
-        builder: (context, state) => const WelcomeLoginScreen(),
-      ),
+      // Der Willkommensbildschirm wurde entfernt: alte Links führen zum Login.
+      GoRoute(path: '/welcome', redirect: (context, state) => '/login'),
       GoRoute(
         path: '/login',
         builder: (context, state) =>
-            const Scaffold(body: LoginForm(showBackButton: true)),
+            Scaffold(body: LoginForm(showBackButton: context.canPop())),
+      ),
+      GoRoute(
+        path: '/dashboard',
+        builder: (context, state) => const DashboardPage(),
+      ),
+      GoRoute(
+        path: '/wear',
+        builder: (context, state) => const WearSubstitutionsPage(),
       ),
       GoRoute(
         path: SettingsDeepLinks.deepLinkError,

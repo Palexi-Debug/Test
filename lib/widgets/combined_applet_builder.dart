@@ -180,27 +180,51 @@ class _CombinedAppletBuilderState<T>
             children: [
               if (snapshot.data?.contentStatus == ContentStatus.offline)
                 Container(
-                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  width: double.infinity,
+                  color: Theme.of(context).colorScheme.errorContainer,
                   child: SafeArea(
                     left: false,
                     right: false,
                     bottom: false,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12.0,
+                        vertical: 8.0,
+                      ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.offline_pin,
-                            color: Theme.of(context).colorScheme.primary,
+                            Icons.warning_amber_rounded,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${AppLocalizations.of(context).offline} (${snapshot.data?.fetchedAt.format('E dd.MM HH:mm')})',
-                            style: Theme.of(context).textTheme.bodyMedium!
-                                .copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Offline – gespeicherte Daten',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onErrorContainer,
+                                      ),
                                 ),
+                                Text(
+                                  'Stand: ${snapshot.data?.fetchedAt.format('EEEE, dd.MM.yyyy')} um ${snapshot.data?.fetchedAt.format('HH:mm')} Uhr. Die Daten können veraltet sein.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onErrorContainer,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

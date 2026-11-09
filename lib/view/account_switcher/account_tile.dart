@@ -110,7 +110,7 @@ class AccountTile extends ConsumerWidget {
               context.go(
                 phase == AuthPhase.authenticated
                     ? firstSupportedHomePath(ref)
-                    : '/welcome',
+                    : '/login',
               );
             } else {
               await ref.read(accountsProvider.notifier).remove(account.localId);

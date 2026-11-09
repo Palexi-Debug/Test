@@ -218,9 +218,9 @@ class ItemBlock extends StatelessWidget {
           width: min(1, width / 3),
         ),
         color: color ?? Colors.transparent,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: BorderRadius.circular(12.0),
       ),
-      padding: EdgeInsets.all(4.0),
+      padding: EdgeInsets.all(5.0),
       child: child,
     );
   }
@@ -266,7 +266,10 @@ class ItemBlock extends StatelessWidget {
                               children: [
                                 Text(
                                   subject!.name ?? '',
-                                  style: textStyle,
+                                  style: textStyle.copyWith(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   maxLines: 1,
                                 ),
                                 if (subject!.lehrer != null)

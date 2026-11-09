@@ -5,6 +5,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Schnelle Prüfung auf Fehler (ca. 2-3 Minuten), läuft parallel zum APK-Build
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: dart run intl_utils:generate
+
+      - name: Analyze (nur Fehler brechen ab)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -39,7 +58,7 @@ jobs:
 
       - name: Build release APK (arm64)
         run: >
-          flutter build apk --release --no-shrink --target-platform android-arm64
+          flutter build apk --release --no-shrink --split-debug-info=build/symbols --target-platform android-arm64
           --build-name=1.0.${{ github.run_number }}
           --build-number=$((1000 + ${{ github.run_number }}))
           --dart-define=cronetHttpNoPlay=true

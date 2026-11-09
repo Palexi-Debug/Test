@@ -19,6 +19,7 @@ import 'package:lanis/utils/server_status.dart';
 import 'package:lanis/utils/whats_new.dart';
 import 'package:lanis/view/server_status_page.dart';
 import 'package:lanis/view/settings/start_page.dart';
+import 'package:lanis/view/wear/wear_mode.dart';
 import 'package:lanis/widgets/applet_home_shell.dart';
 
 /// Nested home applet paths (order matches bottom-nav / shell branches).
@@ -36,8 +37,14 @@ String firstSupportedHomePathFor({
   required AccountType accountType,
   String? preferredPathSegment,
 }) {
+  // Experimentell: auf einer Uhr nur den Vertretungsplan zeigen.
+  if (WearMode.enabled) return '/wear';
+  // Standard: Kachel-Startseite
+  if (preferredPathSegment == null || preferredPathSegment == 'dashboard') {
+    return '/dashboard';
+  }
   // Vom Nutzer gewählte Startseite (Einstellungen > Startseite)
-  if (preferredPathSegment != null && preferredPathSegment.isNotEmpty) {
+  if (preferredPathSegment.isNotEmpty) {
     for (final def in AppDefinitions.homeApplets) {
       if (def.pathSegment == preferredPathSegment &&
           supported.contains(def.appletPhpUrl) &&
@@ -142,7 +149,7 @@ class HomePageState extends ConsumerState<HomePage> {
     final account = _account;
     if (account == null) {
       await ref.read(authControllerProvider.notifier).logout();
-      if (mounted) context.go('/welcome');
+      if (mounted) context.go('/login');
       return;
     }
     await ref
@@ -153,7 +160,7 @@ class HomePageState extends ConsumerState<HomePage> {
     if (phase == AuthPhase.authenticated) {
       context.go(firstSupportedHomePath(ref));
     } else {
-      context.go('/welcome');
+      context.go('/login');
     }
   }
 
@@ -262,6 +269,14 @@ class HomePageState extends ConsumerState<HomePage> {
       ));
     }
 
+    items.add((
+      label: 'Startseite',
+      icon: const Icon(Icons.dashboard_outlined),
+      selectedIcon: const Icon(Icons.dashboard),
+      enabled: true,
+      branchIndex: null,
+      onTap: () => context.go('/dashboard'),
+    ));
     items.add((
       label: AppLocalizations.of(context).settings,
       icon: const Icon(Icons.settings),
@@ -519,6 +534,12 @@ class HomePageState extends ConsumerState<HomePage> {
     final anySupported = AppDefinitions.homeApplets.any(_supports);
     final isTablet = Responsive.isTablet(context);
     final onHomeBranch = _onHomeBranch;
+    final startsOnDashboard =
+        (ref
+                .read(sharedOverAccountSettingsProvider)
+                .getString(startPageSettingKey) ??
+            'dashboard') ==
+        'dashboard';
     final rail = isTablet ? navRail(context) : null;
     final content = anySupported ? widget.navigationShell : noAppsSupported();
 
@@ -529,9 +550,14 @@ class HomePageState extends ConsumerState<HomePage> {
       goBranch: _goBranch,
       openDrawer: () => _drawerKey.currentState?.openDrawer(),
       child: PopScope(
-        canPop: isTablet || onHomeBranch,
+        canPop: isTablet || (onHomeBranch && !startsOnDashboard),
         onPopInvokedWithResult: (didPop, result) {
-          if (didPop || isTablet || onHomeBranch) return;
+          if (didPop || isTablet) return;
+          if (onHomeBranch) {
+            // Zurück zur Kachel-Startseite statt die App zu schließen
+            context.go('/dashboard');
+            return;
+          }
           _returnToLastHomeBranch();
         },
         child: Scaffold(

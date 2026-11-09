@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:lanis/view/wear/wear_mode.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
@@ -31,6 +32,7 @@ Future<void> main() async {
 Future<void> _startApp() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+    await WearMode.detect();
 
     if (kReleaseMode) {
       ErrorWidget.builder = (FlutterErrorDetails details) {

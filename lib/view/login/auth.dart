@@ -9,6 +9,7 @@ import 'package:lanis/utils/logger.dart';
 import 'package:lanis/utils/glitchtip.dart';
 import 'package:lanis/utils/privacy_policy.dart';
 import 'package:lanis/utils/safe_launch.dart';
+import 'package:lanis/view/secret/secret_page.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -170,6 +171,7 @@ class LoginFormState extends ConsumerState<LoginForm> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        const Positioned.fill(child: _LoginBackground()),
         if (widget.showBackButton)
           Padding(
             padding: EdgeInsets.only(right: 32, top: 32),
@@ -179,17 +181,24 @@ class LoginFormState extends ConsumerState<LoginForm> {
                 if (context.canPop()) {
                   context.pop();
                 } else {
-                  context.go('/welcome');
+                  context.go('/login');
                 }
               },
-              icon: Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
             ),
           ),
         Padding(
           padding: const EdgeInsets.all(padding),
           child: Center(
             child: Container(
-              constraints: BoxConstraints(maxWidth: 550),
+              constraints: const BoxConstraints(maxWidth: 550),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(28),
+              ),
               child: Form(
                 key: _formKey,
                 child: AutofillGroup(
@@ -216,8 +225,10 @@ class LoginFormState extends ConsumerState<LoginForm> {
                             child: ListTile(
                               leading: const Icon(Icons.school),
                               title: const Text(fixedSchoolName),
-                              subtitle: Text(
-                                'Schulportal Hessen · ID $fixedSchoolId · Build $buildId',
+                              subtitle: SecretBuildTap(
+                                child: Text(
+                                  'Schulportal Hessen · ID $fixedSchoolId · Build $buildId',
+                                ),
                               ),
                             ),
                           ),
@@ -304,6 +315,60 @@ class LoginFormState extends ConsumerState<LoginForm> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+
+/// Hintergrund des Logins: Foto der Schule (Tag im hellen, Nacht im dunklen
+/// Modus). Ohne Internet wird eine mitgelieferte Zeichnung gezeigt.
+class _LoginBackground extends StatelessWidget {
+  const _LoginBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fallback = Image.asset(
+      dark ? 'assets/login_night.jpg' : 'assets/login_day.jpg',
+      fit: BoxFit.cover,
+    );
+    final photo = Image.network(
+      'https://startcache.schulportal.hessen.de/exporteur.php?a=schoolbg&i=${LoginFormState.fixedSchoolId}&s=xs',
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.medium,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) =>
+          (frame == null && !wasSynchronouslyLoaded)
+          ? const SizedBox.shrink()
+          : child,
+      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        fallback,
+        // Nacht: Foto abdunkeln und bläulich einfärben
+        dark
+            ? ColorFiltered(
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF3B4A8F),
+                  BlendMode.multiply,
+                ),
+                child: photo,
+              )
+            : photo,
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: dark ? 0.25 : 0.05),
+                Colors.black.withValues(alpha: dark ? 0.6 : 0.35),
+              ],
             ),
           ),
         ),

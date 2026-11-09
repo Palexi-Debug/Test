@@ -13,10 +13,10 @@ import 'package:lanis/applets/timetable/student/timetable_week_selection.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
 
-final double itemHeight = 46;
-final double headerHeight = 40;
-final double hourWidth = 70;
-final double pauseHeight = 18;
+final double itemHeight = 58;
+final double headerHeight = 48;
+final double hourWidth = 54;
+final double pauseHeight = 14;
 
 class StudentTimetableBetterView extends ConsumerStatefulWidget {
   final Function? openDrawerCb;
@@ -370,7 +370,7 @@ class TimeTableView extends StatelessWidget {
                               : Theme.of(
                                   context,
                                 ).colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(12.0),
                         ),
                         width: hourWidth,
                         height: row.type == TimeTableRowType.lesson
@@ -381,7 +381,13 @@ class TimeTableView extends StatelessWidget {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(row.label, style: TextStyle(fontSize: 12)),
+                              Text(
+                                row.label,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               ...(row.type == TimeTableRowType.lesson
                                   ? [
                                       Text(
@@ -478,6 +484,18 @@ class TimeTableView extends StatelessWidget {
     );
   }
 
+  bool _isToday(int dayIndex) {
+    final date = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day + dayIndex,
+    );
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
   List<Widget> _itemDays(BuildContext context) {
     return [
       for (int i = 0; i < data.timetableDays.length; i++)
@@ -487,8 +505,10 @@ class TimeTableView extends StatelessWidget {
             Container(
               height: headerHeight,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8.0),
+                color: _isToday(i)
+                    ? Theme.of(context).colorScheme.primaryContainer
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12.0),
               ),
               child: Builder(
                 builder: (context) {
@@ -507,6 +527,7 @@ class TimeTableView extends StatelessWidget {
                           Localizations.localeOf(context).languageCode,
                         ).format(date),
                         textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
                         date.format('dd.MM.'),

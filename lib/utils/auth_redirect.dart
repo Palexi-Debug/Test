@@ -17,7 +17,7 @@ String? resolveAuthRedirect({
   required String? deepLinkErrorPath,
   required String Function() homePath,
 }) {
-  final loggingIn = loc == '/welcome' || loc == '/login';
+  final loggingIn = loc == '/login';
   final onStartup = loc == '/startup';
   final onPrivacyPolicy = loc == '/privacy-policy';
 
@@ -37,13 +37,13 @@ String? resolveAuthRedirect({
     case AuthPhase.unauthenticated:
       if (onPrivacyPolicy) {
         // Empty installs should not stay on the update gate.
-        return hasAccounts ? null : '/welcome';
+        return hasAccounts ? null : '/login';
       }
       if (loggingIn || onStartup) {
-        if (onStartup) return '/welcome';
+        if (onStartup) return '/login';
         return null;
       }
-      return '/welcome';
+      return '/login';
     case AuthPhase.error:
       if (onPrivacyPolicy || loc == '/login') return null;
       return onStartup ? null : '/startup';

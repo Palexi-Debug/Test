@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:lanis/utils/logger.dart';
 import 'package:lanis/utils/root_nav.dart';
 import 'package:lanis/utils/safe_launch.dart';
+import 'package:lanis/view/secret/secret_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lanis/generated/l10n.dart';
 
@@ -47,9 +48,11 @@ Future<ReleaseNotesScreen?> showLocalUpdateInfo(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Build $buildId',
-            style: Theme.of(dialogContext).textTheme.headlineSmall,
+          SecretBuildTap(
+            child: Text(
+              'Build $buildId',
+              style: Theme.of(dialogContext).textTheme.headlineSmall,
+            ),
           ),
           const SizedBox(height: 8),
           Text('Version ${packageInfo.version} (${packageInfo.buildNumber})'),

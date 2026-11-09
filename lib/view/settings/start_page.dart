@@ -12,7 +12,7 @@ Future<void> showStartPageDialog(BuildContext context) async {
   final shared = ProviderScope.containerOf(
     context,
   ).read(sharedOverAccountSettingsProvider);
-  final current = shared.getString(startPageSettingKey) ?? '';
+  final current = shared.getString(startPageSettingKey) ?? 'dashboard';
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
@@ -31,7 +31,8 @@ Future<void> showStartPageDialog(BuildContext context) async {
             padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
             child: Text('Dieser Bereich öffnet sich beim nächsten Start der App.'),
           ),
-          option('', 'Automatisch'),
+          option('dashboard', 'Kachel-Übersicht (Standard)'),
+          option('auto', 'Erster verfügbarer Bereich'),
           for (final def in AppDefinitions.homeApplets)
             option(def.pathSegment, def.label(dialogContext)),
         ],
