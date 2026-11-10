@@ -30,6 +30,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Einheitliche Build-Nummer (Anzahl Commits)
+        run: echo "BUILD_ID=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         with:
@@ -77,14 +82,14 @@ jobs:
       - name: Build release APK (arm64)
         run: >
           flutter build apk --release --no-shrink --split-debug-info=build/symbols --target-platform android-arm64
-          --build-name=1.0.${{ github.run_number }}
-          --build-number=$((1000 + ${{ github.run_number }}))
+          --build-name=1.0.${{ env.BUILD_ID }}
+          --build-number=$((1000 + ${{ env.BUILD_ID }}))
           --dart-define=cronetHttpNoPlay=true
-          --dart-define=BUILD_ID=${{ github.run_number }}
+          --dart-define=BUILD_ID=${{ env.BUILD_ID }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Schulportal-APK-build${{ github.run_number }}
+          name: Schulportal-APK-build${{ env.BUILD_ID }}
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Release veröffentlichen (für Auto-Update)
@@ -93,7 +98,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MSG: ${{ github.event.head_commit.message }}
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk Schulportal-build${{ github.run_number }}.apk
-          gh release create "build-${{ github.run_number }}" "Schulportal-build${{ github.run_number }}.apk" \
-            --title "Build ${{ github.run_number }}" \
+          cp build/app/outputs/flutter-apk/app-release.apk Schulportal-build${{ env.BUILD_ID }}.apk
+          gh release create "build-${{ env.BUILD_ID }}" "Schulportal-build${{ env.BUILD_ID }}.apk" \
+            --title "Build ${{ env.BUILD_ID }}" \
             --notes "$MSG" || echo "Release fehlgeschlagen (nicht kritisch)"
