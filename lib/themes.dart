@@ -18,7 +18,7 @@ class Themes {
         brightness: brightness,
       );
       final roundedShape = RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       );
       return ThemeData(
         useMaterial3: true,
@@ -56,6 +56,31 @@ class Themes {
           ),
         ),
         listTileTheme: ListTileThemeData(shape: roundedShape),
+        dialogTheme: DialogThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+        ),
+        drawerTheme: DrawerThemeData(
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
+          ),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          indicatorShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
       );
     }
 

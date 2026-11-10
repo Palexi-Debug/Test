@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +14,22 @@ const String _orderKey = 'dashboard-order';
 const String _hiddenKey = 'dashboard-hidden';
 const String _columnsKey = 'dashboard-columns';
 const String _sizeKey = 'dashboard-size';
+const String _colorsKey = 'dashboard-colors';
+const String _namesKey = 'dashboard-names';
+const String _styleKey = 'dashboard-style'; // 0 bunt, 1 einfarbig
+const String _radiusKey = 'dashboard-radius'; // 0 eckig, 1 rund, 2 sehr rund
+const String _greetingKey = 'dashboard-greeting'; // 1 an, 0 aus
+
+const List<Color> _tilePalette = [
+  Color(0xFF3F51B5),
+  Color(0xFF009688),
+  Color(0xFF43A047),
+  Color(0xFFF9A825),
+  Color(0xFFEF6C00),
+  Color(0xFFD81B60),
+  Color(0xFF8E24AA),
+  Color(0xFF546E7A),
+];
 
 /// Startseite mit Kacheln. Im Bearbeiten-Modus lassen sich die Kacheln
 /// verschieben, ein-/ausblenden und das Raster (Spalten, Größe) ändern.
@@ -28,6 +46,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _columns = 0; // 0 = automatisch
   int _size = 1; // 0 klein, 1 mittel, 2 groß
   bool _editing = false;
+  Map<String, int> _colors = {};
+  Map<String, String> _names = {};
+  int _style = 0;
+  int _radius = 1;
+  bool _greetingOn = true;
 
   static List<String> _split(String? value) =>
       (value ?? '').split(',').where((e) => e.isNotEmpty).toList();
@@ -40,6 +63,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     _hidden = _split(settings.getString(_hiddenKey)).toSet();
     _columns = int.tryParse(settings.getString(_columnsKey) ?? '') ?? 0;
     _size = int.tryParse(settings.getString(_sizeKey) ?? '') ?? 1;
+    try {
+      _colors = (jsonDecode(settings.getString(_colorsKey) ?? '{}') as Map)
+          .map((k, v) => MapEntry(k as String, v as int));
+      _names = (jsonDecode(settings.getString(_namesKey) ?? '{}') as Map)
+          .map((k, v) => MapEntry(k as String, v as String));
+    } catch (_) {}
+    _style = int.tryParse(settings.getString(_styleKey) ?? '') ?? 0;
+    _radius = int.tryParse(settings.getString(_radiusKey) ?? '') ?? 1;
+    _greetingOn = settings.getString(_greetingKey) != '0';
   }
 
   void _save() {
@@ -48,6 +80,89 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     settings.setString(_hiddenKey, _hidden.join(','));
     settings.setString(_columnsKey, _columns.toString());
     settings.setString(_sizeKey, _size.toString());
+    settings.setString(_colorsKey, jsonEncode(_colors));
+    settings.setString(_namesKey, jsonEncode(_names));
+    settings.setString(_styleKey, _style.toString());
+    settings.setString(_radiusKey, _radius.toString());
+    settings.setString(_greetingKey, _greetingOn ? '1' : '0');
+  }
+
+  Future<void> _editTile(_TileData tile) async {
+    final controller = TextEditingController(text: _names[tile.id] ?? tile.label);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          20 + MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Kachel anpassen', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: 'Name',
+                border: const OutlineInputBorder(),
+                helperText: 'Original: ${tile.label}',
+              ),
+              onChanged: (v) {
+                setState(() {
+                  if (v.trim().isEmpty || v.trim() == tile.label) {
+                    _names.remove(tile.id);
+                  } else {
+                    _names[tile.id] = v.trim();
+                  }
+                });
+                _save();
+              },
+            ),
+            const SizedBox(height: 16),
+            Text('Farbe', style: Theme.of(ctx).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.auto_awesome_rounded, size: 18),
+                  label: const Text('Automatisch'),
+                  onPressed: () {
+                    setState(() => _colors.remove(tile.id));
+                    _save();
+                    Navigator.pop(ctx);
+                  },
+                ),
+                for (final c in _tilePalette)
+                  InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () {
+                      setState(() => _colors[tile.id] = c.toARGB32());
+                      _save();
+                      Navigator.pop(ctx);
+                    },
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: c,
+                      child: _colors[tile.id] == c.toARGB32()
+                          ? const Icon(Icons.check, color: Colors.white)
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
   }
 
   void _reset() {
@@ -56,6 +171,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       _hidden = {};
       _columns = 0;
       _size = 1;
+      _colors = {};
+      _names = {};
+      _style = 0;
+      _radius = 1;
+      _greetingOn = true;
     });
     _save();
   }
@@ -177,9 +297,30 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
           Widget cell(String id) {
             final data = byId[id]!;
-            final colors = palette[ordered.indexOf(id) % palette.length];
+            var colors = _style == 1
+                ? palette[3]
+                : palette[ordered.indexOf(id) % palette.length];
+            final custom = _colors[id];
+            if (custom != null) {
+              final bg = Color(custom);
+              final dark = Theme.of(context).brightness == Brightness.dark;
+              final tinted = Color.lerp(bg, dark ? Colors.black : Colors.white, dark ? 0.35 : 0.0)!;
+              colors = (
+                tinted,
+                tinted.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+              );
+            }
             final tile = _TileCard(
-              data: data,
+              data: _names[id] == null
+                  ? data
+                  : _TileData(
+                      id: data.id,
+                      label: _names[id]!,
+                      icon: data.icon,
+                      onTap: data.onTap,
+                    ),
+              radius: const [12.0, 24.0, 34.0][_radius],
+              onEdit: () => _editTile(data),
               background: colors.$1,
               foreground: colors.$2,
               wide: columns == 1,
@@ -208,7 +349,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(const [12.0, 24.0, 34.0][_radius]),
                         border: candidate.isNotEmpty
                             ? Border.all(color: scheme.primary, width: 3)
                             : null,
@@ -222,7 +363,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
-                child: Padding(
+                child: !_greetingOn
+                    ? const SizedBox(height: 4)
+                    : Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,7 +446,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Kachel gedrückt halten und verschieben. Das Auge blendet eine Kachel ein oder aus.',
+              'Kachel gedrückt halten und verschieben. Tippen ändert Name und Farbe, das Auge blendet eine Kachel aus.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -346,7 +489,52 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 },
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            Text('Stil', style: labelStyle),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<int>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment<int>(value: 0, label: Text('Bunt')),
+                  ButtonSegment<int>(value: 1, label: Text('Einfarbig')),
+                ],
+                selected: {_style},
+                onSelectionChanged: (value) {
+                  setState(() => _style = value.first);
+                  _save();
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('Ecken', style: labelStyle),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<int>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment<int>(value: 0, label: Text('Eckig')),
+                  ButtonSegment<int>(value: 1, label: Text('Rund')),
+                  ButtonSegment<int>(value: 2, label: Text('Sehr rund')),
+                ],
+                selected: {_radius},
+                onSelectionChanged: (value) {
+                  setState(() => _radius = value.first);
+                  _save();
+                },
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Begrüßung anzeigen'),
+              value: _greetingOn,
+              onChanged: (v) {
+                setState(() => _greetingOn = v);
+                _save();
+              },
+            ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -384,8 +572,12 @@ class _TileCard extends StatelessWidget {
   final bool editing;
   final bool hidden;
   final VoidCallback onToggleHidden;
+  final VoidCallback onEdit;
+  final double radius;
 
   const _TileCard({
+    required this.onEdit,
+    required this.radius,
     required this.data,
     required this.background,
     required this.foreground,
@@ -425,10 +617,10 @@ class _TileCard extends StatelessWidget {
           Positioned.fill(
             child: Material(
               color: background,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(radius),
               child: InkWell(
-                borderRadius: BorderRadius.circular(24),
-                onTap: editing ? null : data.onTap,
+                borderRadius: BorderRadius.circular(radius),
+                onTap: editing ? onEdit : data.onTap,
                 child: Padding(padding: const EdgeInsets.all(16), child: content),
               ),
             ),

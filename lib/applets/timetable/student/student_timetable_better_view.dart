@@ -13,10 +13,10 @@ import 'package:lanis/applets/timetable/student/timetable_week_selection.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
 
-final double itemHeight = 58;
+final double itemHeight = 52;
 final double headerHeight = 48;
 final double hourWidth = 54;
-final double pauseHeight = 14;
+final double pauseHeight = 10;
 
 class StudentTimetableBetterView extends ConsumerStatefulWidget {
   final Function? openDrawerCb;

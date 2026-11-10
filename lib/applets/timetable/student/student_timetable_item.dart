@@ -207,7 +207,18 @@ class ItemBlock extends StatelessWidget {
     );
   }
 
-  Widget _colorContainer(double width, {Widget? child}) {
+  /// Einheitlich gedämpfte Fachfarben: weniger grell, gleiche Helligkeit.
+  static Color soften(BuildContext context, Color c) {
+    final hsl = HSLColor.fromColor(c);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return hsl
+        .withSaturation(min(hsl.saturation, 0.5))
+        .withLightness(dark ? 0.30 + hsl.lightness * 0.14 : 0.74 + hsl.lightness * 0.12)
+        .toColor();
+  }
+
+  Widget _colorContainer(double width, {Widget? child, Color? shown}) {
+    final color = shown ?? this.color;
     return Container(
       width: width,
       height: height,
@@ -220,17 +231,20 @@ class ItemBlock extends StatelessWidget {
         color: color ?? Colors.transparent,
         borderRadius: BorderRadius.circular(12.0),
       ),
-      padding: EdgeInsets.all(5.0),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.0),
       child: child,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final Color? shown = (color != null && subject != null)
+        ? soften(context, color!)
+        : color;
     TextStyle textStyle = TextStyle(
       fontSize: 12,
-      color: color != null
-          ? color!.computeLuminance() > 0.5
+      color: shown != null
+          ? shown.computeLuminance() > 0.5
                 ? Colors.black
                 : Colors.white
           : null,
@@ -245,53 +259,54 @@ class ItemBlock extends StatelessWidget {
       top: offset,
       left: hOffset,
       child: disableAction
-          ? _colorContainer(calcWidth, child: SizedBox())
+          ? _colorContainer(calcWidth, child: SizedBox(), shown: shown)
           : InkWell(
               onTap: subject != null ? () => showSubject(context) : null,
               child: _colorContainer(
                 calcWidth,
+                shown: shown,
                 child: onlyColor
                     ? SizedBox()
-                    : (!onlyColor && subject != null)
-                    ? SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Wrap(
-                              runAlignment: WrapAlignment.spaceBetween,
-                              alignment: WrapAlignment.spaceBetween,
-                              spacing: height % itemHeight >= 1.99
-                                  ? 99999
-                                  : 8.0,
-                              children: [
-                                Text(
-                                  subject!.name ?? '',
-                                  style: textStyle.copyWith(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  maxLines: 1,
-                                ),
-                                if (subject!.lehrer != null)
-                                  Text(
-                                    subject!.lehrer!,
-                                    style: textStyle,
-                                    maxLines: 1,
-                                  ),
-                              ],
-                            ),
-                            if (subject!.raum != null)
-                              Text(
-                                subject!.raum!,
-                                style: textStyle,
-                                maxLines: 1,
-                              ),
-                          ],
-                        ),
-                      )
+                    : (subject != null)
+                    ? _content(calcWidth, textStyle)
                     : SizedBox(),
               ),
             ),
+    );
+  }
+
+  Widget _fit(String text, TextStyle style) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Text(text, style: style, maxLines: 1),
+  );
+
+  /// Zentrierter Inhalt, der sich bei schmalen Spalten verkleinert.
+  Widget _content(double w, TextStyle textStyle) {
+    final narrow = w < 64;
+    final tall = height >= itemHeight * 1.5;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _fit(
+            subject!.name ?? '',
+            textStyle.copyWith(
+              fontSize: narrow ? 12 : 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (subject!.raum != null && (!narrow || tall))
+            _fit(subject!.raum!, textStyle.copyWith(fontSize: 12)),
+          if (subject!.lehrer != null && (tall || !narrow))
+            _fit(
+              subject!.lehrer!,
+              textStyle.copyWith(
+                fontSize: 11,
+                color: textStyle.color?.withValues(alpha: 0.75),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
