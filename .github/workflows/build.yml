@@ -26,6 +26,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +58,22 @@ jobs:
       - name: Generate l10n
         run: dart run intl_utils:generate
 
+      # Fester Signaturschlüssel (nur wenn die Secrets gesetzt sind),
+      # damit Updates über die alte App drüberinstalliert werden können.
+      - name: Signaturschlüssel einrichten
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > android/app/schulportal-release.jks
+            printf 'storeFile=schulportal-release.jks\nstorePassword=%s\nkeyPassword=%s\nkeyAlias=%s\n' "$KS_PASS" "$KS_PASS" "$KS_ALIAS" > android/key.properties
+            echo "Fester Schlüssel aktiv"
+          else
+            echo "Kein Schlüssel hinterlegt, Debug-Signatur wird benutzt"
+          fi
+
       - name: Build release APK (arm64)
         run: >
           flutter build apk --release --no-shrink --split-debug-info=build/symbols --target-platform android-arm64
@@ -68,3 +86,14 @@ jobs:
         with:
           name: Schulportal-APK-build${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Release veröffentlichen (für Auto-Update)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk Schulportal-build${{ github.run_number }}.apk
+          gh release create "build-${{ github.run_number }}" "Schulportal-build${{ github.run_number }}.apk" \
+            --title "Build ${{ github.run_number }}" \
+            --notes "$MSG" || echo "Release fehlgeschlagen (nicht kritisch)"

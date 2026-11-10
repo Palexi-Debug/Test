@@ -60,11 +60,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     _save();
   }
 
+  /// Tauscht zwei Kacheln: die abgelegte Kachel wandert an die Stelle der
+  /// Ziel-Kachel, die Ziel-Kachel (animiert) dorthin, wo die gezogene herkam.
   void _move(List<String> ordered, String from, String to) {
     final list = List<String>.of(ordered);
-    final toIndex = list.indexOf(to);
-    if (toIndex < 0 || !list.remove(from)) return;
-    list.insert(toIndex, from);
+    final i = list.indexOf(from);
+    final j = list.indexOf(to);
+    if (i < 0 || j < 0 || i == j) return;
+    list[i] = to;
+    list[j] = from;
     setState(() => _order = list);
     _save();
   }
@@ -250,14 +254,36 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       : const SizedBox(width: double.infinity),
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(padding, 0, padding, 24),
-                sliver: SliverGrid.count(
-                  crossAxisCount: columns,
-                  mainAxisSpacing: spacing,
-                  crossAxisSpacing: spacing,
-                  childAspectRatio: aspect,
-                  children: [for (final id in shownIds) cell(id)],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(padding, 0, padding, 24),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    height: shownIds.isEmpty
+                        ? 0
+                        : ((shownIds.length + columns - 1) ~/ columns) *
+                                  cellHeight +
+                              (((shownIds.length + columns - 1) ~/ columns) -
+                                      1) *
+                                  spacing,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        for (var i = 0; i < shownIds.length; i++)
+                          AnimatedPositioned(
+                            key: ValueKey(shownIds[i]),
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.easeInOutCubic,
+                            left: (i % columns) * (cellWidth + spacing),
+                            top: (i ~/ columns) * (cellHeight + spacing),
+                            width: cellWidth,
+                            height: cellHeight,
+                            child: cell(shownIds[i]),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -380,14 +406,7 @@ class _TileCard extends StatelessWidget {
             children: [
               Icon(data.icon, size: 34, color: foreground),
               const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  data.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: titleStyle,
-                ),
-              ),
+              Expanded(child: _FitLabel(data.label, titleStyle)),
             ],
           )
         : Column(
@@ -395,12 +414,7 @@ class _TileCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(data.icon, size: 38, color: foreground),
-              Text(
-                data.label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: titleStyle,
-              ),
+              _FitLabel(data.label, titleStyle),
             ],
           );
 
@@ -435,6 +449,36 @@ class _TileCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Beschriftung, die sich automatisch verkleinert statt abgeschnitten zu werden.
+class _FitLabel extends StatelessWidget {
+  final String text;
+  final TextStyle? style;
+  const _FitLabel(this.text, this.style);
+
+  @override
+  Widget build(BuildContext context) {
+    final multiWord = text.contains(' ');
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: multiWord ? w : 100000),
+            child: Text(
+              text,
+              style: style,
+              maxLines: multiWord ? 2 : 1,
+              softWrap: multiWord,
+            ),
+          ),
+        );
+      },
     );
   }
 }

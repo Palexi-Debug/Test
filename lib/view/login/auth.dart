@@ -190,15 +190,8 @@ class LoginFormState extends ConsumerState<LoginForm> {
         Padding(
           padding: const EdgeInsets.all(padding),
           child: Center(
-            child: Container(
+            child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 550),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.surface.withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(28),
-              ),
               child: Form(
                 key: _formKey,
                 child: AutofillGroup(

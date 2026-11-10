@@ -9,7 +9,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:lanis/utils/logger.dart';
 import 'package:lanis/utils/root_nav.dart';
 import 'package:lanis/utils/safe_launch.dart';
-import 'package:lanis/view/secret/secret_page.dart';
+import 'package:lanis/utils/updater.dart';
+import 'package:lanis/view/settings/version_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lanis/generated/l10n.dart';
 
@@ -32,49 +33,27 @@ int compareVersions(String version1, String version2) {
   return 0;
 }
 
-/// Zeigt Version und Build-Nummer dieser App an (lokal, ohne Netzwerk).
+/// Öffnet die Seite "Version".
 Future<ReleaseNotesScreen?> showLocalUpdateInfo(
   BuildContext context, {
   bool dialog = true,
 }) async {
-  final packageInfo = await PackageInfo.fromPlatform();
-  const buildId = String.fromEnvironment('BUILD_ID', defaultValue: 'dev');
-  if (!context.mounted) return null;
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(AppLocalizations.of(dialogContext).inThisUpdate),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SecretBuildTap(
-            child: Text(
-              'Build $buildId',
-              style: Theme.of(dialogContext).textTheme.headlineSmall,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text('Version ${packageInfo.version} (${packageInfo.buildNumber})'),
-          const SizedBox(height: 16),
-          const Text('Diese App basiert auf Lanis Mobile (GPLv3).'),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('OK'),
-        ),
-      ],
-    ),
-  );
+  await Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const VersionPage()));
   return null;
 }
 
-/// Deaktiviert: Die Update-Prüfung von Lanis Mobile würde auf das Original
-/// verweisen und passt nicht zu den Build-Nummern dieser App.
+bool _updateChecked = false;
+
+/// Prüft einmal pro App-Start im Hintergrund auf ein neues Build.
 void showUpdateInfoIfRequired(BuildContext context) async {
-  return;
+  if (_updateChecked) return;
+  _updateChecked = true;
+  final res = await checkForUpdate();
+  if (res.result == UpdateCheckResult.newer && context.mounted) {
+    await showUpdateDialog(context, res.info!);
+  }
 }
 
 Future<String> getDeviceReleaseTag() async {

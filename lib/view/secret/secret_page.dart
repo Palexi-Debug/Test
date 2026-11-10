@@ -198,6 +198,17 @@ class _SecretLabPageState extends State<SecretLabPage> {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.auto_awesome_rounded, color: scheme.primary),
+              title: const Text('Mitgebaut von Claude'),
+              subtitle: const Text(
+                'Diese App wurde gemeinsam mit Claude (Anthropic) entwickelt – '
+                'inklusive diesem Geheimnis. Hi! 👋',
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           Center(
             child: Text(
@@ -286,28 +297,30 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                 ),
               ),
               Center(
+                child: AnimatedRotation(
+                  turns: _taps * 0.125,
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutBack,
+                  child: Container(
+                    width: 150,
+                    height: 150,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                    child: Icon(
+                      Icons.menu_book_rounded,
+                      size: 84,
+                      color: base,
+                    ),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: const Alignment(0, 0.55),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    AnimatedRotation(
-                      turns: _taps * 0.125,
-                      duration: const Duration(milliseconds: 500),
-                      curve: Curves.easeOutBack,
-                      child: Container(
-                        width: 150,
-                        height: 150,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                        child: Icon(
-                          Icons.menu_book_rounded,
-                          size: 84,
-                          color: base,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
                     const Text(
                       'Schulportal',
                       style: TextStyle(
@@ -326,6 +339,13 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                       ),
                     ),
                   ],
+                ),
+              ),
+              const Align(
+                alignment: Alignment(0, 0.92),
+                child: Text(
+                  'Mitgebaut von Claude (Anthropic)',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
                 ),
               ),
               SafeArea(

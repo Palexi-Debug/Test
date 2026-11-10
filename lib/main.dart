@@ -162,7 +162,7 @@ class App extends ConsumerWidget {
         }
 
         return MaterialApp.router(
-          title: 'Lanis Mobile',
+          title: 'Schulportal',
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: mode,

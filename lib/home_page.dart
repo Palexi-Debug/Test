@@ -186,7 +186,7 @@ class HomePageState extends ConsumerState<HomePage> {
   Widget noAppsSupported() {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lanis-Mobile'),
+        title: const Text('Schulportal'),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () => _drawerKey.currentState!.openDrawer(),
