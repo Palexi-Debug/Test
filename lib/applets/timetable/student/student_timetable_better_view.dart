@@ -10,6 +10,7 @@ import 'package:lanis/applets/timetable/definition.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_item.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
 import 'package:lanis/applets/timetable/student/timetable_week_selection.dart';
+import 'package:lanis/applets/timetable/student/timetable_day_view.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
 
@@ -198,13 +199,16 @@ class _StudentTimetableBetterViewState
                                 ),
                               ),
                             IconButton(
+                              tooltip: (settings['single-day'] ?? true)
+                                  ? 'Wochenansicht'
+                                  : 'Tagesansicht',
                               onPressed: () => updateSettings(
                                 'single-day',
-                                !(settings['single-day'] ?? false),
+                                !(settings['single-day'] ?? true),
                               ),
-                              icon: (settings['single-day'] ?? false)
-                                  ? Icon(Icons.calendar_today)
-                                  : Icon(Icons.calendar_today_outlined),
+                              icon: (settings['single-day'] ?? true)
+                                  ? Icon(Icons.view_week_outlined)
+                                  : Icon(Icons.view_day_outlined),
                             ),
                           ],
                         ),
@@ -327,6 +331,15 @@ class TimeTableView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (settings['single-day'] ?? true) {
+      return TimetableDayView(
+        data: data,
+        weekStart: weekStart,
+        settings: settings,
+        updateSettings: updateSettings,
+        refresh: refresh,
+      );
+    }
     return RefreshIndicator(
       onRefresh: refresh ?? () async {},
       child: SingleChildScrollView(
@@ -413,7 +426,7 @@ class TimeTableView extends StatelessWidget {
                     builder: (context) {
                       var days = _itemDays(context);
 
-                      if (!(settings['single-day'] ?? false)) {
+                      if (!(settings['single-day'] ?? true)) {
                         return Row(
                           spacing: 4.0,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -669,7 +682,7 @@ class _TimeMarkerWidgetState extends ConsumerState<TimeMarkerWidget> {
       top: headerHeight + offset - (lineHeight / 2),
       child: Container(
         color: Colors.red,
-        width: (widget.settings['single-day'] ?? false)
+        width: (widget.settings['single-day'] ?? true)
             ? wholeWidth - 10
             : dayWidth,
         height: lineHeight,

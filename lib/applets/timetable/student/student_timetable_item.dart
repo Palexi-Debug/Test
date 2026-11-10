@@ -468,10 +468,10 @@ class ListItem extends StatelessWidget {
                   // Only show the color of the subject to save resources
                   onlyColor:
                       subjectsInRow.length > 3 &&
-                      !(settings['single-day'] ?? false),
+                      !(settings['single-day'] ?? true),
                   disableAction:
                       subjectsInRow.length > 6 &&
-                      !(settings['single-day'] ?? false),
+                      !(settings['single-day'] ?? true),
                 );
               },
             ),
