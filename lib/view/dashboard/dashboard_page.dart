@@ -212,11 +212,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       if (plan == null) return null;
       final now = DateTime.now();
       for (final d in plan.days) {
-        final p = d.parsedDate;
-        if (p != null &&
-            p.year == now.year &&
-            p.month == now.month &&
-            p.day == now.day) {
+        final p = d.parsedDate.toString();
+        final parsed = DateTime.tryParse(p);
+        final isToday =
+            (parsed != null &&
+                parsed.year == now.year &&
+                parsed.month == now.month &&
+                parsed.day == now.day) ||
+            p.contains(DateFormat('dd.MM.yyyy').format(now)) ||
+            p.contains(DateFormat('yyyy-MM-dd').format(now));
+        if (isToday) {
           final n = d.substitutions.length;
           if (n == 0) return 'Heute keine Vertretung';
           return n == 1 ? '1 Vertretung heute' : '$n Vertretungen heute';
