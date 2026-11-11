@@ -1,0 +1,27 @@
+# Dart
+.dart_tool/
+.packages
+pubspec.lock
+build/
+doc/api/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Generated (keep riverpod *.g.dart in lib/ for consumers)
+*.freezed.dart
+
+# OS
+.DS_Store
+
+# Local credentials (never commit)
+*.env
+.adminaccount.env
+.studentaccount.env
+.credentials.env
+
+# Per-applet tooling: ephemeral scrape dumps + resume state
+tool/*/discovery/
+tool/*/run/
