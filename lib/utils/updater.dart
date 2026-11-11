@@ -44,7 +44,7 @@ Future<UpdateCheck> checkForUpdate() async {
     String? apk;
     for (final a in assets) {
       final name = (a['name'] ?? '').toString();
-      if (name.endsWith('.apk')) {
+      if (name.endsWith('.apk') && !name.toLowerCase().contains('wear')) {
         apk = a['browser_download_url']?.toString();
         break;
       }

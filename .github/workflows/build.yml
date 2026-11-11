@@ -99,6 +99,6 @@ jobs:
           MSG: ${{ github.event.head_commit.message }}
         run: |
           cp build/app/outputs/flutter-apk/app-release.apk Schulportal-build${{ env.BUILD_ID }}.apk
-          gh release create "build-${{ env.BUILD_ID }}" "Schulportal-build${{ env.BUILD_ID }}.apk" \
-            --title "Build ${{ env.BUILD_ID }}" \
-            --notes "$MSG" || echo "Release fehlgeschlagen (nicht kritisch)"
+          TAG="build-${{ env.BUILD_ID }}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Build ${{ env.BUILD_ID }}" --notes "$MSG" || true
+          gh release upload "$TAG" "Schulportal-build${{ env.BUILD_ID }}.apk" --clobber

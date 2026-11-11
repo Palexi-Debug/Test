@@ -8,6 +8,8 @@ jobs:
   build-wear:
     name: Wear OS APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,3 +73,15 @@ jobs:
         with:
           name: Schulportal-WearOS-build${{ env.BUILD_ID }}
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Uhr-APK ans Release anhängen
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          F="Schulportal-WearOS-build${{ env.BUILD_ID }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$F"
+          TAG="build-${{ env.BUILD_ID }}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Build ${{ env.BUILD_ID }}" --notes "$MSG" || true
+          gh release upload "$TAG" "$F" --clobber
