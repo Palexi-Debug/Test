@@ -9,6 +9,9 @@ import 'package:lanis/applets/definitions.dart';
 import 'package:lanis/shell_navigation.dart';
 import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/view/server_status_page.dart';
+import 'package:lanis/applets/substitutions/definition.dart';
+import 'package:lanis/widgets/app_bottom_bar.dart';
+import 'package:lanis/widgets/entrance.dart';
 
 const String _orderKey = 'dashboard-order';
 const String _hiddenKey = 'dashboard-hidden';
@@ -200,6 +203,45 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     _save();
   }
 
+  /// Live-Info zu den Vertretungen (nur wenn schon Daten geladen/gecacht sind).
+  String? _substitutionLive() {
+    try {
+      final parser = ref.watch(substitutionsParserProvider);
+      final plan =
+          (parser as dynamic).latestResponse?.content as SubstitutionPlan?;
+      if (plan == null) return null;
+      final now = DateTime.now();
+      for (final d in plan.days) {
+        final p = d.parsedDate;
+        if (p != null &&
+            p.year == now.year &&
+            p.month == now.month &&
+            p.day == now.day) {
+          final n = d.substitutions.length;
+          if (n == 0) return 'Heute keine Vertretung';
+          return n == 1 ? '1 Vertretung heute' : '$n Vertretungen heute';
+        }
+      }
+      return 'Heute keine Vertretung';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _firstName() {
+    try {
+      final v = ref
+          .watch(sessionProvider)
+          .asData
+          ?.value
+          ?.userData['vorname']
+          ?.toString();
+      return (v == null || v.isEmpty) ? '' : ', $v';
+    } catch (_) {
+      return '';
+    }
+  }
+
   static String _greeting() {
     final hour = DateTime.now().hour;
     if (hour < 11) return 'Guten Morgen';
@@ -230,6 +272,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         _TileData(
           id: def.pathSegment,
           label: def.label(context),
+          live: def.pathSegment == 'substitutions' ? _substitutionLive() : null,
           icon: def.icon.icon ?? Icons.apps,
           onTap: () => context.go(appletHomePath(def, accountType)),
         ),
@@ -268,9 +311,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final schoolName = account?.schoolName ?? '';
 
     return Scaffold(
+      bottomNavigationBar: const AppBottomBar(),
       appBar: AppBar(
         title: const Text('Startseite'),
         actions: [
+          IconButton(
+            tooltip: 'Account wechseln',
+            icon: const Icon(Icons.switch_account_rounded),
+            onPressed: () => context.push('/accounts'),
+          ),
           IconButton(
             tooltip: _editing ? 'Fertig' : 'Kacheln bearbeiten',
             icon: Icon(_editing ? Icons.check_rounded : Icons.edit_rounded),
@@ -316,6 +365,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   : _TileData(
                       id: data.id,
                       label: _names[id]!,
+                      live: data.live,
                       icon: data.icon,
                       onTap: data.onTap,
                     ),
@@ -371,7 +421,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _greeting(),
+                        _greeting() + _firstName(),
                         style: Theme.of(context).textTheme.headlineMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -422,7 +472,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                             top: (i ~/ columns) * (cellHeight + spacing),
                             width: cellWidth,
                             height: cellHeight,
-                            child: cell(shownIds[i]),
+                            child: Entrance(index: i, child: cell(shownIds[i])),
                           ),
                       ],
                     ),
@@ -555,8 +605,10 @@ class _TileData {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+  final String? live;
 
   const _TileData({
+    this.live,
     required this.id,
     required this.label,
     required this.icon,
@@ -587,6 +639,27 @@ class _TileCard extends StatelessWidget {
     required this.onToggleHidden,
   });
 
+  Widget _labelBlock(TextStyle? titleStyle) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _FitLabel(data.label, titleStyle),
+      if (data.live != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            data.live!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: foreground.withValues(alpha: 0.8),
+              fontSize: 12,
+            ),
+          ),
+        ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -598,7 +671,7 @@ class _TileCard extends StatelessWidget {
             children: [
               Icon(data.icon, size: 34, color: foreground),
               const SizedBox(width: 16),
-              Expanded(child: _FitLabel(data.label, titleStyle)),
+              Expanded(child: _labelBlock(titleStyle)),
             ],
           )
         : Column(
@@ -606,7 +679,7 @@ class _TileCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(data.icon, size: 38, color: foreground),
-              _FitLabel(data.label, titleStyle),
+              _labelBlock(titleStyle),
             ],
           );
 

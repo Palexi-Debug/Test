@@ -8,6 +8,7 @@ import 'package:lanis/applets/timetable/definition.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_item.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
 import 'package:lanis/utils/liblanis_ui.dart';
+import 'package:lanis/widgets/entrance.dart';
 
 int _min(SphTimeOfDay t) => t.hour * 60 + t.minute;
 
@@ -118,7 +119,13 @@ class _TimetableDayViewState extends State<TimetableDayView> {
           continue;
         }
         for (final s in starting) {
-          items.add(_card(context, row, s, showNow, nowMin));
+          items.add(
+            Entrance(
+              key: ValueKey('d$_day-${items.length}'),
+              index: items.length,
+              child: _card(context, row, s, showNow, nowMin),
+            ),
+          );
         }
       }
     }

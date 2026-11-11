@@ -28,10 +28,8 @@ Widget _homeAppletBody(AppletDefinition def) {
       final accountType =
           ref.watch(activeAccountProvider.select((a) => a?.accountType)) ??
           AccountType.student;
-      final chrome = HomeChrome.maybeOf(context);
-      final openDrawer = Responsive.isTablet(context)
-          ? null
-          : () => chrome?.openDrawer();
+      // Handy: keine Seitenleiste mehr, daher auch kein Menü-Knopf.
+      final Function? openDrawer = null;
       final builder = def.bodyBuilder;
       if (builder == null) {
         return const SizedBox.shrink();

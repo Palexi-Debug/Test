@@ -55,6 +55,15 @@ class _UpdateDialogState extends State<_UpdateDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Aktuell installiert: Build $currentBuildId'),
+          if (widget.info.notes.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('Was ist neu', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 160),
+              child: SingleChildScrollView(child: Text(widget.info.notes.trim())),
+            ),
+          ],
           if (downloading) ...[
             const SizedBox(height: 16),
             LinearProgressIndicator(value: _progress),

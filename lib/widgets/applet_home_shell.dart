@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:lanis/applets/definitions.dart';
 import 'package:lanis/utils/responsive.dart';
+import 'package:lanis/widgets/app_bottom_bar.dart';
 
 /// Chrome owned by [HomePage]: drawer + branch switching for nested applets.
 ///
@@ -102,20 +103,7 @@ class _PhoneAppletBottomNav extends ConsumerWidget {
         MediaQuery.removePadding(
           context: context,
           removeTop: true,
-          child: NavigationBar(
-            destinations: [
-              for (final def in defs)
-                NavigationDestination(
-                  label: def.label(context),
-                  icon: def.icon,
-                  selectedIcon: def.selectedIcon,
-                ),
-            ],
-            selectedIndex: selectedInBar < 0 ? 0 : selectedInBar,
-            onDestinationSelected: (int index) =>
-                chrome.goBranch(indexes[index]),
-            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-          ),
+          child: const AppBottomBar(),
         ),
       ],
     );

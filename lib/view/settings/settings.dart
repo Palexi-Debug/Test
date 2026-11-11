@@ -309,8 +309,8 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
             backgroundColor: backgroundColor,
             title: Text(AppLocalizations.of(context).settings),
             leading: IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.go('/dashboard'),
             ),
           ),
           body: settingsList,

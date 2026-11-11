@@ -187,10 +187,6 @@ class HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Schulportal'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => _drawerKey.currentState!.openDrawer(),
-        ),
       ),
       body: Center(
         child: Column(
@@ -581,7 +577,7 @@ class HomePageState extends ConsumerState<HomePage> {
                   ],
                 )
               : content,
-          drawer: navDrawer(context),
+          drawer: isTablet ? navDrawer(context) : null,
         ),
       ),
     );

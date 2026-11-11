@@ -23,6 +23,11 @@ class Themes {
       return ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          },
+        ),
         // Eigenes Aussehen: weiche, runde Karten ohne Schatten
         cardTheme: CardThemeData(
           elevation: 0,
