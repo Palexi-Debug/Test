@@ -304,9 +304,16 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                   child: Container(
                     width: 150,
                     height: 150,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          blurRadius: 60,
+                          spreadRadius: 8,
+                        ),
+                      ],
                     ),
                     child: Icon(
                       Icons.menu_book_rounded,
@@ -321,13 +328,31 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Schulportal',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
+                    AnimatedBuilder(
+                      animation: _pulse,
+                      builder: (context, child) => ShaderMask(
+                        shaderCallback: (rect) => LinearGradient(
+                          colors: const [
+                            Colors.white,
+                            Color(0xFFFFE082),
+                            Colors.white,
+                          ],
+                          stops: [
+                            (_pulse.value - 0.3).clamp(0.0, 1.0),
+                            _pulse.value,
+                            (_pulse.value + 0.3).clamp(0.0, 1.0),
+                          ],
+                        ).createShader(rect),
+                        child: child,
+                      ),
+                      child: const Text(
+                        'Schulportal',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -380,6 +405,20 @@ class _RingsPainter extends CustomPainter {
         ..strokeWidth = 3
         ..color = Colors.white.withValues(alpha: (1 - p) * 0.35);
       canvas.drawCircle(center, 90 + p * size.shortestSide * 0.5, paint);
+    }
+    // Funkelnde Sterne, die langsam nach oben treiben
+    double frac(double v) => v - v.floorToDouble();
+    for (var i = 0; i < 34; i++) {
+      final x = frac(sin(i * 12.9898) * 43758.5453);
+      final y0 = frac(sin(i * 78.233) * 12345.678);
+      final y = frac(y0 - t * 0.12 * (1 + i % 3));
+      final tw = 0.5 + 0.5 * sin(2 * pi * (t * 2 + i / 7));
+      final r = (i % 4 == 0 ? 2.6 : 1.4) * (0.6 + 0.6 * tw);
+      canvas.drawCircle(
+        Offset(x * size.width, y * size.height),
+        r,
+        Paint()..color = Colors.white.withValues(alpha: 0.25 + 0.65 * tw),
+      );
     }
   }
 

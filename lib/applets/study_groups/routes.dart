@@ -51,9 +51,8 @@ class StudyGroupsModePage extends ConsumerWidget {
     if (session == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final openDrawer = Responsive.isTablet(context)
-        ? null
-        : () => Scaffold.of(context).openDrawer();
+    // Keine Seitenleiste mehr am Handy: kein Menü-Knopf.
+    final VoidCallback? openDrawer = null;
     final parser = ref.watch(studyGroupsParserProvider);
     return CombinedAppletBuilder(
       parser: parser,
