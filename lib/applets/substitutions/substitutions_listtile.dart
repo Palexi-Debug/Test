@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liblanis/liblanis.dart';
 
 import '../../widgets/marquee.dart';
+import 'teacher_lookup.dart';
 
 class SubstitutionListTile extends StatelessWidget {
   final Substitution substitutionData;
@@ -26,6 +27,7 @@ class SubstitutionListTile extends StatelessWidget {
     required String? value,
     required String? valueAlt,
     required IconData icon,
+    bool teacherLookup = false,
   }) {
     final displayValue = primaryOrAlt(value, valueAlt);
     if (displayValue == null) {
@@ -50,10 +52,25 @@ class SubstitutionListTile extends StatelessWidget {
               ),
             ],
           ),
-          SubstitutionsFormattedText(
-            displayValue,
-            Theme.of(context).textTheme.bodyMedium!,
-          ),
+          teacherLookup
+              ? InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => showTeacherNameDialog(context, displayValue),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: SubstitutionsFormattedText(
+                      displayValue,
+                      Theme.of(context).textTheme.bodyMedium!.copyWith(
+                        decoration: TextDecoration.underline,
+                        decorationStyle: TextDecorationStyle.dotted,
+                      ),
+                    ),
+                  ),
+                )
+              : SubstitutionsFormattedText(
+                  displayValue,
+                  Theme.of(context).textTheme.bodyMedium!,
+                ),
         ],
       ),
     );
@@ -108,6 +125,7 @@ class SubstitutionListTile extends StatelessWidget {
                           value: substitutionData.vertreter,
                           valueAlt: null,
                           icon: Icons.person,
+                          teacherLookup: true,
                         ) ??
                         const SizedBox.shrink(),
                     getSubstitutionInfo(
@@ -116,6 +134,7 @@ class SubstitutionListTile extends StatelessWidget {
                           value: substitutionData.lehrer,
                           valueAlt: null,
                           icon: Icons.school,
+                          teacherLookup: true,
                         ) ??
                         const SizedBox.shrink(),
                     getSubstitutionInfo(

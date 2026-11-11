@@ -4,6 +4,28 @@ enum AmoledColor { background, secondary, third }
 
 // Only a collection of themes
 // Used for ColorModeNotifier to set the app theme dynamically
+/// Ruhiger Seitenwechsel: nur kurzes Überblenden, keine Bewegung
+/// (vermeidet Übelkeit und graue Flächen bei schnellem Wechseln).
+class SoftFadePageTransitionsBuilder extends PageTransitionsBuilder {
+  const SoftFadePageTransitionsBuilder();
+
+  Duration get transitionDuration => const Duration(milliseconds: 160);
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+      child: child,
+    );
+  }
+}
+
 class Themes {
   final ThemeData? lightTheme;
   final ThemeData? darkTheme;
@@ -25,7 +47,7 @@ class Themes {
         colorScheme: colorScheme,
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
-            TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+            TargetPlatform.android: SoftFadePageTransitionsBuilder(),
           },
         ),
         // Eigenes Aussehen: weiche, runde Karten ohne Schatten

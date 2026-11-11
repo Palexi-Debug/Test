@@ -12,6 +12,7 @@ import 'package:lanis/view/server_status_page.dart';
 import 'package:lanis/applets/substitutions/definition.dart';
 import 'package:lanis/widgets/app_bottom_bar.dart';
 import 'package:lanis/widgets/entrance.dart';
+import 'package:lanis/view/tutorial/tutorial_page.dart';
 
 const String _orderKey = 'dashboard-order';
 const String _hiddenKey = 'dashboard-hidden';
@@ -75,6 +76,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     _style = int.tryParse(settings.getString(_styleKey) ?? '') ?? 0;
     _radius = int.tryParse(settings.getString(_radiusKey) ?? '') ?? 1;
     _greetingOn = settings.getString(_greetingKey) != '0';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showTutorialIfFirstTime(context);
+    });
   }
 
   void _save() {
@@ -222,9 +226,43 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             p.contains(DateFormat('dd.MM.yyyy').format(now)) ||
             p.contains(DateFormat('yyyy-MM-dd').format(now));
         if (isToday) {
-          final n = d.substitutions.length;
+          final subs = d.substitutions.toList();
+          final n = subs.length;
           if (n == 0) return 'Heute keine Vertretung';
-          return n == 1 ? '1 Vertretung heute' : '$n Vertretungen heute';
+          final head = n == 1 ? '1 Vertretung heute' : '$n Vertretungen heute';
+          // Unterrichtszeiten der Schule (Beginn/Ende je Stunde, in Minuten)
+          const starts = [480, 525, 595, 640, 705, 750, 840, 880, 925];
+          const ends = [525, 570, 640, 685, 750, 795, 880, 920, 965];
+          final nowMin = now.hour * 60 + now.minute;
+          String clean(Object? v) {
+            final t = (v ?? '').toString().replaceAll(RegExp(r'<[^>]*>'), '').trim();
+            return (t == '-' || t == '---') ? '' : t;
+          }
+          ({int first, int last, Object s})? best;
+          for (final sub in subs) {
+            final nums = RegExp(r'\d+')
+                .allMatches(clean((sub as dynamic).stunde))
+                .map((m) => int.parse(m.group(0)!))
+                .toList();
+            if (nums.isEmpty) continue;
+            final first = nums.first, last = nums.last;
+            if (last < 1 || last > ends.length) continue;
+            if (ends[last - 1] <= nowMin) continue; // schon vorbei
+            if (best == null || first < best.first) {
+              best = (first: first, last: last, s: sub as Object);
+            }
+          }
+          if (best == null) return '$head\nHeute keine weiteren';
+          final x = best.s as dynamic;
+          final fach = clean(x.fach);
+          final vertreter = clean(x.vertreter);
+          final now_ = starts[best.first.clamp(1, starts.length) - 1] <= nowMin;
+          final line = [
+            '${now_ ? 'Jetzt' : 'Nächste'}: Std ${best.first == best.last ? best.first : '${best.first}-${best.last}'}',
+            if (fach.isNotEmpty) fach,
+            if (vertreter.isNotEmpty) 'Vertr. $vertreter',
+          ].join(' · ');
+          return '$head\n$line';
         }
       }
       return 'Heute keine Vertretung';
@@ -654,7 +692,7 @@ class _TileCard extends StatelessWidget {
           padding: const EdgeInsets.only(top: 2),
           child: Text(
             data.live!,
-            maxLines: 1,
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: foreground.withValues(alpha: 0.8),

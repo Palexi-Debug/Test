@@ -106,7 +106,34 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SvgPicture.asset('assets/startup.svg', height: 96, width: 96),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutBack,
+            builder: (context, v, child) => Opacity(
+              opacity: v.clamp(0.0, 1.0),
+              child: Transform.scale(scale: 0.6 + 0.4 * v, child: child),
+            ),
+            child: SvgPicture.asset(
+              'assets/startup.svg',
+              height: 110,
+              width: 110,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 1200),
+            curve: Curves.easeOut,
+            builder: (context, v, child) => Opacity(opacity: v, child: child),
+            child: Text(
+              'Schulportal',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           const CircularProgressIndicator(),
           const SizedBox(height: 16),

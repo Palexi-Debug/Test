@@ -7,6 +7,7 @@ import 'package:lanis/shell_navigation.dart';
 import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/utils/whats_new.dart';
 import 'package:lanis/view/server_status_page.dart';
+import 'package:lanis/view/tutorial/tutorial_page.dart';
 
 class _BarItem {
   final String key;
@@ -16,6 +17,8 @@ class _BarItem {
   final VoidCallback onTap;
   const _BarItem(this.key, this.label, this.icon, this.selectedIcon, this.onTap);
 }
+
+DateTime _lastTap = DateTime.fromMillisecondsSinceEpoch(0);
 
 const _mainSegments = {'substitutions', 'timetable', 'conversations'};
 
@@ -108,6 +111,10 @@ class AppBottomBar extends ConsumerWidget {
           ),
       ],
       onDestinationSelected: (index) {
+        // Zu schnelles Wechseln ignorieren (verhindert graue Bildschirme).
+        final now = DateTime.now();
+        if (now.difference(_lastTap) < const Duration(milliseconds: 450)) return;
+        _lastTap = now;
         if (items[index].key == selectedKey && selectedKey != 'more') return;
         items[index].onTap();
       },
@@ -206,6 +213,11 @@ class AppBottomBar extends ConsumerWidget {
                   Icons.dns_rounded,
                   'Serverstatus',
                   () => openServerStatus(context),
+                ),
+                tile(
+                  Icons.school_outlined,
+                  'Tutorial',
+                  () => showTutorial(context),
                 ),
                 tile(
                   Icons.info_outline_rounded,
