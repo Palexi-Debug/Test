@@ -24,7 +24,7 @@ class MainView extends WatchUi.View {
     }
 
     // Groesste Schrift, in die der Text noch hineinpasst
-    function fit(dc as Dc, text as String, maxW as Number, fonts as Array) as Number {
+    function fit(dc as Dc, text as String, maxW as Number, fonts as Array<Graphics.FontType>) as Graphics.FontType {
         for (var i = 0; i < fonts.size(); i++) {
             if (dc.getTextWidthInPixels(text, fonts[i]) <= maxW) {
                 return fonts[i];
