@@ -40,19 +40,21 @@ jobs:
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         run: |
           export PATH="$PWD/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+          
+          # Verzeichnis vorab anlegen, damit der SDK-Manager nicht abstuerzt
+          mkdir -p ~/.Garmin/ConnectIQ/Sdks
+          
           connect-iq-sdk-manager agreement accept --agreement-hash=${{ vars.AGREEMENT_HASH }}
           connect-iq-sdk-manager login
           
-          # SDK-Liste ausgeben und Version automatisch extrahieren
-          connect-iq-sdk-manager sdk list || true
-          SDK_VER=$(connect-iq-sdk-manager sdk list | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
-          
+          # Neueste verfügbare Version ermitteln
+          SDK_VER=$(connect-iq-sdk-manager sdk list 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
           if [ -z "$SDK_VER" ]; then
             SDK_VER="7.x"
           fi
           
-          echo "Verwende automatische SDK-Version: $SDK_VER"
-          connect-iq-sdk-manager sdk set "$SDK_VER"
+          echo "Verwende SDK-Version: $SDK_VER"
+          connect-iq-sdk-manager sdk set "$SDK_VER" || connect-iq-sdk-manager sdk set 7.x || true
           connect-iq-sdk-manager device download --manifest=garmin/manifest.xml
           echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
 
