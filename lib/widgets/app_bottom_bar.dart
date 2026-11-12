@@ -92,6 +92,19 @@ class AppBottomBar extends ConsumerWidget {
       ),
     );
 
+    // Reihenfolge laut Einstellung (nur die Einträge vor "Mehr").
+    final orderRaw = ref.watch(themeSettingsProvider)['nav-order'] as String;
+    if (orderRaw.isNotEmpty) {
+      final order = orderRaw.split(',');
+      final more = items.removeLast();
+      items.sort((a, b) {
+        final ia = order.indexOf(a.key);
+        final ib = order.indexOf(b.key);
+        return (ia < 0 ? 99 : ia).compareTo(ib < 0 ? 99 : ib);
+      });
+      items.add(more);
+    }
+
     var selectedKey = 'more';
     if (path.startsWith('/dashboard')) {
       selectedKey = 'dashboard';

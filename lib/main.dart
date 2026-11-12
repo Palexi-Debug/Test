@@ -155,7 +155,13 @@ class App extends ConsumerWidget {
           snapshot['accent-hex'] as String,
         );
         final bool customColor = snapshot['color'] == 'custom';
-        if (customColor || lookRadius != 20.0 || lookDensity != 0.0) {
+        final int lookCard = snapshot['look-card'] as int;
+        final bool lookCenter = snapshot['look-center'] as bool;
+        if (customColor ||
+            lookRadius != 20.0 ||
+            lookDensity != 0.0 ||
+            lookCard != 0 ||
+            lookCenter) {
           Color? seed;
           if (customColor) {
             seed = customSeed;
@@ -171,6 +177,8 @@ class App extends ConsumerWidget {
             seed,
             radius: lookRadius,
             density: lookDensity,
+            cardStyle: lookCard,
+            centerTitle: lookCenter,
           );
           if (snapshot['is-amoled'] == true) {
             theme = Themes.getAmoledThemes(theme);

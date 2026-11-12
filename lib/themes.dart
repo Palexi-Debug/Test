@@ -36,6 +36,8 @@ class Themes {
     Color seedColor, {
     double radius = 20,
     double density = 0,
+    int cardStyle = 0,
+    bool centerTitle = false,
   }) {
     // The basic theme, global theme data changes should be put here.
     ThemeData basicTheme(Brightness brightness) {
@@ -58,8 +60,13 @@ class Themes {
         ),
         // Eigenes Aussehen: weiche, runde Karten ohne Schatten
         cardTheme: CardThemeData(
-          elevation: 0,
-          shape: roundedShape,
+          elevation: cardStyle == 2 ? 3 : 0,
+          shape: cardStyle == 1
+              ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(radius),
+                  side: BorderSide(color: colorScheme.outlineVariant),
+                )
+              : roundedShape,
           color: colorScheme.surfaceContainerHigh,
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         ),
@@ -76,8 +83,8 @@ class Themes {
             borderSide: BorderSide(color: colorScheme.primary, width: 2),
           ),
         ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
+        appBarTheme: AppBarTheme(
+          centerTitle: centerTitle,
           scrolledUnderElevation: 0,
         ),
         filledButtonTheme: FilledButtonThemeData(

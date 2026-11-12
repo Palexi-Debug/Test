@@ -26,6 +26,9 @@ final themeSettingsProvider = Provider<Map<String, dynamic>>((ref) {
     'look-density':
         double.tryParse(settings.getString('look-density') ?? '') ?? 0.0,
     'look-anim': int.tryParse(settings.getString('look-anim') ?? '') ?? 1,
+    'look-card': int.tryParse(settings.getString('look-card') ?? '') ?? 0,
+    'look-center': settings.getString('look-center') == '1',
+    'nav-order': settings.getString('nav-order') ?? '',
     'nav-labels': settings.getString('nav-labels') != '0',
     'tt-intensity':
         double.tryParse(settings.getString('tt-intensity') ?? '') ?? 1.0,
