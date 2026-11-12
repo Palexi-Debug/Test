@@ -67,7 +67,7 @@ jobs:
 
       - name: Build release APK (arm64)
         run: >
-          flutter build apk --release --no-shrink --target-platform android-arm
+          flutter build apk --release --no-shrink --target-platform android-arm,android-arm64
           --build-name=${{ env.VERSION_NAME }}
           --build-number=$((1000 + ${{ env.BUILD_ID }}))
           --dart-define=cronetHttpNoPlay=true
