@@ -1,0 +1,63 @@
+name: Garmin Build (Venu Sq 2)
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Zugangsdaten pruefen
+        env:
+          U: ${{ secrets.GARMIN_USERNAME }}
+          P: ${{ secrets.GARMIN_PASSWORD }}
+          H: ${{ vars.AGREEMENT_HASH }}
+        run: |
+          if [ -z "$U" ] || [ -z "$P" ] || [ -z "$H" ]; then
+            echo "FEHLT: Secrets GARMIN_USERNAME / GARMIN_PASSWORD und Variable AGREEMENT_HASH (siehe garmin/README.md)"
+            exit 1
+          fi
+
+      - name: SDK-Manager installieren
+        run: |
+          curl -s https://raw.githubusercontent.com/lindell/connect-iq-sdk-manager-cli/master/install.sh | sh
+          for d in "$PWD/bin" "$HOME/.local/bin" /usr/local/bin; do echo "$d" >> "$GITHUB_PATH"; done
+
+      - name: Anmelden und SDK + Geraet laden
+        env:
+          GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+        run: |
+          export PATH="$PWD/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+          connect-iq-sdk-manager agreement accept --acceptance-hash=${{ vars.AGREEMENT_HASH }}
+          connect-iq-sdk-manager login
+          connect-iq-sdk-manager sdk set
+          connect-iq-sdk-manager device download --manifest=garmin/manifest.xml
+          echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
+
+      - name: Entwicklerschluessel erzeugen
+        run: |
+          openssl genrsa -out dev.pem 4096
+          openssl pkcs8 -topk8 -inform PEM -outform DER -in dev.pem -out developer_key.der -nocrypt
+
+      - name: Bauen
+        run: monkeyc -d venusq2 -f garmin/monkey.jungle -o Schulportal-venusq2.prg -y developer_key.der -w
+
+      - name: Release (Vorabversion, stoert die Handy-Updates nicht)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="garmin-${{ github.run_number }}"
+          gh release create "$TAG" --prerelease --latest=false --title "Garmin Test $TAG" --notes "Venu Sq 2 Testversion (Beispieldaten). Per USB nach GARMIN/Apps kopieren." || true
+          gh release upload "$TAG" Schulportal-venusq2.prg --clobber
