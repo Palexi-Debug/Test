@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:lanis/view/wear/wear_mode.dart';
 
 /// Umschließt ein Widget (z. B. die Build-Nummer). Wer 7-mal schnell darauf
 /// tippt, öffnet das Geheimlabor.
@@ -271,6 +272,7 @@ class _SecretLogoPageState extends State<SecretLogoPage>
 
   @override
   Widget build(BuildContext context) {
+    final w = WearMode.enabled;
     final base = HSLColor.fromAHSL(1, _hue, 0.55, 0.30).toColor();
     final light = HSLColor.fromAHSL(1, (_hue + 30) % 360, 0.6, 0.45).toColor();
     return Scaffold(
@@ -293,7 +295,7 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                 child: AnimatedBuilder(
                   animation: _pulse,
                   builder: (context, _) =>
-                      CustomPaint(painter: _RingsPainter(_pulse.value)),
+                      CustomPaint(painter: _RingsPainter(_pulse.value, w ? 0.4 : 1.0)),
                 ),
               ),
               Center(
@@ -302,29 +304,29 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                   duration: const Duration(milliseconds: 500),
                   curve: Curves.easeOutBack,
                   child: Container(
-                    width: 150,
-                    height: 150,
+                    width: w ? 64 : 150,
+                    height: w ? 64 : 150,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.white.withValues(alpha: 0.45),
-                          blurRadius: 60,
-                          spreadRadius: 8,
+                          blurRadius: w ? 18 : 60,
+                          spreadRadius: w ? 2 : 8,
                         ),
                       ],
                     ),
                     child: Icon(
                       Icons.menu_book_rounded,
-                      size: 84,
+                      size: w ? 36 : 84,
                       color: base,
                     ),
                   ),
                 ),
               ),
               Align(
-                alignment: const Alignment(0, 0.55),
+                alignment: Alignment(0, w ? 0.5 : 0.55),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -345,34 +347,44 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                         ).createShader(rect),
                         child: child,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Schulportal',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 36,
+                          fontSize: w ? 14 : 36,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
+                          letterSpacing: w ? 1 : 2,
                         ),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Build $_secretBuildId',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white70,
-                        fontSize: 18,
+                        fontSize: w ? 9 : 18,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Align(
-                alignment: Alignment(0, 0.92),
-                child: Text(
-                  'Mitgebaut von Claude (Anthropic)',
-                  style: TextStyle(color: Colors.white54, fontSize: 13),
+              if (!w)
+                const Align(
+                  alignment: Alignment(0, 0.92),
+                  child: Text(
+                    'Mitgebaut von Claude (Anthropic)',
+                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                )
+              else
+                const Align(
+                  alignment: Alignment(0, 0.8),
+                  child: Text(
+                    'mit Claude',
+                    style: TextStyle(color: Colors.white54, fontSize: 8),
+                  ),
                 ),
-              ),
+              if (!w)
               SafeArea(
                 child: Align(
                   alignment: Alignment.topLeft,
@@ -392,8 +404,9 @@ class _SecretLogoPageState extends State<SecretLogoPage>
 
 class _RingsPainter extends CustomPainter {
   final double t;
+  final double scale;
 
-  const _RingsPainter(this.t);
+  const _RingsPainter(this.t, [this.scale = 1.0]);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -404,7 +417,11 @@ class _RingsPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3
         ..color = Colors.white.withValues(alpha: (1 - p) * 0.35);
-      canvas.drawCircle(center, 90 + p * size.shortestSide * 0.5, paint);
+      canvas.drawCircle(
+        center,
+        (90 + p * size.shortestSide * 0.5) * scale,
+        paint,
+      );
     }
     // Funkelnde Sterne, die langsam nach oben treiben
     double frac(double v) => v - v.floorToDouble();
