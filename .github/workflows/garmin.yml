@@ -66,6 +66,12 @@ jobs:
       - name: Bauen
         run: monkeyc -d venusq2 -f garmin/monkey.jungle -o Schulportal-venusq2.prg -y developer_key.der -w
 
+      - name: PRG-Datei als Artifact speichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schulportal-venusq2
+          path: Schulportal-venusq2.prg
+
       - name: Release (Vorabversion)
         env:
           GH_TOKEN: ${{ github.token }}
