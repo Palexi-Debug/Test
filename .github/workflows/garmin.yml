@@ -25,7 +25,7 @@ jobs:
           H: ${{ vars.AGREEMENT_HASH }}
         run: |
           if [ -z "$U" ] || [ -z "$P" ] || [ -z "$H" ]; then
-            echo "FEHLT: Secrets GARMIN_USERNAME / GARMIN_PASSWORD und Variable AGREEMENT_HASH (siehe garmin/README.md)"
+            echo "FEHLT: Secrets GARMIN_USERNAME / GARMIN_PASSWORD und Variable AGREEMENT_HASH"
             exit 1
           fi
 
@@ -42,7 +42,16 @@ jobs:
           export PATH="$PWD/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
           connect-iq-sdk-manager agreement accept --agreement-hash=${{ vars.AGREEMENT_HASH }}
           connect-iq-sdk-manager login
-          connect-iq-sdk-manager sdk set latest
+          
+          # Ermittelt automatisch eine stabile, kompatible Version (z.B. 7.x oder 8.x)
+          # Falls der Befehl fehlschlägt, greift als Fallback '7.4.3'
+          SDK_VER=$(connect-iq-sdk-manager sdk list 2>/dev/null | grep -E '^[0-9]+\.[0-9]+' | head -n 1)
+          if [ -z "$SDK_VER" ]; then
+            SDK_VER="7.4.3"
+          fi
+          echo "Verwende SDK-Version: $SDK_VER"
+          
+          connect-iq-sdk-manager sdk set "$SDK_VER"
           connect-iq-sdk-manager device download --manifest=garmin/manifest.xml
           echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
 
@@ -54,10 +63,10 @@ jobs:
       - name: Bauen
         run: monkeyc -d venusq2 -f garmin/monkey.jungle -o Schulportal-venusq2.prg -y developer_key.der -w
 
-      - name: Release (Vorabversion, stoert die Handy-Updates nicht)
+      - name: Release (Vorabversion)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="garmin-${{ github.run_number }}"
-          gh release create "$TAG" --prerelease --latest=false --title "Garmin Test $TAG" --notes "Venu Sq 2 Testversion (Beispieldaten). Per USB nach GARMIN/Apps kopieren." || true
+          gh release create "$TAG" --prerelease --latest=false --title "Garmin Test $TAG" --notes "Venu Sq 2 Testversion. Per USB nach GARMIN/Apps kopieren." || true
           gh release upload "$TAG" Schulportal-venusq2.prg --clobber
