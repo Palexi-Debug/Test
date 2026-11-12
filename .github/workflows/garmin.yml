@@ -42,7 +42,8 @@ jobs:
           export PATH="$PWD/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
           connect-iq-sdk-manager agreement accept --agreement-hash=${{ vars.AGREEMENT_HASH }}
           connect-iq-sdk-manager login
-          connect-iq-sdk-manager sdk set
+          LATEST_SDK=$(connect-iq-sdk-manager sdk list --available | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+          connect-iq-sdk-manager sdk set "$LATEST_SDK"
           connect-iq-sdk-manager device download --manifest=garmin/manifest.xml
           echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
 
