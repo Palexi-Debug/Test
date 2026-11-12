@@ -40,7 +40,7 @@ jobs:
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         run: |
           export PATH="$PWD/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
-          connect-iq-sdk-manager agreement accept --acceptance-hash=${{ vars.AGREEMENT_HASH }}
+          connect-iq-sdk-manager agreement accept --agreement-hash=${{ vars.AGREEMENT_HASH }}
           connect-iq-sdk-manager login
           connect-iq-sdk-manager sdk set
           connect-iq-sdk-manager device download --manifest=garmin/manifest.xml
