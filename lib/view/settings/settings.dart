@@ -12,6 +12,7 @@ import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/utils/responsive.dart';
 import 'package:lanis/utils/whats_new.dart';
 import 'package:lanis/utils/watch_sync.dart';
+import 'package:lanis/utils/garmin_sync.dart';
 import 'package:lanis/view/wear/wear_mode.dart';
 import 'package:lanis/view/settings/settings_page_builder.dart';
 import 'package:lanis/view/settings/start_page.dart';
@@ -248,6 +249,24 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
               nav.pop();
               messenger.showSnackBar(
                 SnackBar(content: Text(err ?? 'Uhr ist angemeldet.')),
+              );
+            },
+          ),
+        ],
+      ),
+      SettingsGroup(
+        tiles: [
+          SettingsTile(
+            icon: Icons.watch_outlined,
+            show: () async => !WearMode.enabled,
+            title: (context) => 'An Garmin-Uhr senden',
+            subtitle: (context) async =>
+                'Stundenplan und Vertretungen (Venu Sq 2, Test)',
+            screen: (context) async {
+              final messenger = ScaffoldMessenger.of(context);
+              final err = await sendToGarmin(ref);
+              messenger.showSnackBar(
+                SnackBar(content: Text(err ?? 'An die Garmin-Uhr gesendet.')),
               );
             },
           ),
