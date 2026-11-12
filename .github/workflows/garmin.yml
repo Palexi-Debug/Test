@@ -43,14 +43,15 @@ jobs:
           connect-iq-sdk-manager agreement accept --agreement-hash=${{ vars.AGREEMENT_HASH }}
           connect-iq-sdk-manager login
           
-          # Ermittelt automatisch eine stabile, kompatible Version (z.B. 7.x oder 8.x)
-          # Falls der Befehl fehlschlägt, greift als Fallback '7.4.3'
-          SDK_VER=$(connect-iq-sdk-manager sdk list 2>/dev/null | grep -E '^[0-9]+\.[0-9]+' | head -n 1)
-          if [ -z "$SDK_VER" ]; then
-            SDK_VER="7.4.3"
-          fi
-          echo "Verwende SDK-Version: $SDK_VER"
+          # SDK-Liste ausgeben und Version automatisch extrahieren
+          connect-iq-sdk-manager sdk list || true
+          SDK_VER=$(connect-iq-sdk-manager sdk list | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
           
+          if [ -z "$SDK_VER" ]; then
+            SDK_VER="7.x"
+          fi
+          
+          echo "Verwende automatische SDK-Version: $SDK_VER"
           connect-iq-sdk-manager sdk set "$SDK_VER"
           connect-iq-sdk-manager device download --manifest=garmin/manifest.xml
           echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
