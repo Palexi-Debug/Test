@@ -1,8 +1,10 @@
 import Toybox.Lang;
+import Toybox.System;
 
 // Aktuelle Daten. s/e = Start/Ende in Minuten seit 0 Uhr.
 module DataStore {
     var live = false;
+    var syncMin = -1;
 
     var lessons = [
         {"s" => 480, "e" => 525, "n" => "Mathematik", "r" => "R 214"},
@@ -19,6 +21,8 @@ module DataStore {
     ];
 
     function update(d as Dictionary) as Void {
+        var t = System.getClockTime();
+        syncMin = t.hour * 60 + t.min;
         var l = d["lessons"];
         if (l instanceof Array) {
             lessons = l;
