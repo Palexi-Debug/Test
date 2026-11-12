@@ -27,7 +27,7 @@ class UpdateCheck {
 
 /// Fragt das neueste Release ab. Funktioniert nur, wenn das Repo öffentlich
 /// ist (oder die Releases sonst ohne Anmeldung erreichbar sind).
-Future<UpdateCheck> checkForUpdate() async {
+Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
   try {
     final response = await Dio().get(
       'https://api.github.com/repos/$updateRepo/releases/latest',
@@ -44,7 +44,8 @@ Future<UpdateCheck> checkForUpdate() async {
     String? apk;
     for (final a in assets) {
       final name = (a['name'] ?? '').toString();
-      if (name.endsWith('.apk') && !name.toLowerCase().contains('wear')) {
+      final isWear = name.toLowerCase().contains('wear');
+      if (name.endsWith('.apk') && isWear == wear) {
         apk = a['browser_download_url']?.toString();
         break;
       }

@@ -14,7 +14,7 @@ import 'package:lanis/utils/privacy_policy.dart';
 import 'package:lanis/utils/glitchtip_navigation.dart';
 import 'package:lanis/view/login/auth.dart';
 import 'package:lanis/view/dashboard/dashboard_page.dart';
-import 'package:lanis/view/wear/wear_substitutions_page.dart';
+import 'package:lanis/view/wear/wear_home.dart';
 import 'package:lanis/view/moodle.dart';
 import 'package:lanis/view/privacy_policy/privacy_policy_screen.dart';
 import 'package:lanis/view/settings/settings_routes.dart';
@@ -204,7 +204,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/wear',
-        builder: (context, state) => const WearSubstitutionsPage(),
+        builder: (context, state) => const WearHome(),
       ),
       GoRoute(
         path: SettingsDeepLinks.deepLinkError,

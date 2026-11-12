@@ -163,6 +163,16 @@ class _VersionPageState extends State<VersionPage> {
           ),
           const SizedBox(height: 24),
           Card(
+            child: ListTile(
+              leading: const Icon(Icons.watch_rounded),
+              title: const Text('Uhr-App (Wear OS)'),
+              subtitle: const Text(
+                'Die Uhr sucht selbst nach Updates: auf der Uhr nach unten '
+                'zur Seite "Update" wischen.',
+              ),
+            ),
+          ),
+          Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
