@@ -14,7 +14,8 @@ class UpdateInfo {
   final int build;
   final String notes;
   final String apkUrl;
-  const UpdateInfo(this.build, this.notes, this.apkUrl);
+  final int size;
+  const UpdateInfo(this.build, this.notes, this.apkUrl, [this.size = 0]);
 }
 
 enum UpdateCheckResult { newer, upToDate, failed }
@@ -42,11 +43,13 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
     final build = int.tryParse(tag.replaceAll(RegExp(r'[^0-9]'), ''));
     final assets = (data['assets'] as List?) ?? const [];
     String? apk;
+    int apkSize = 0;
     for (final a in assets) {
       final name = (a['name'] ?? '').toString();
       final isWear = name.toLowerCase().contains('wear');
       if (name.endsWith('.apk') && isWear == wear) {
         apk = a['browser_download_url']?.toString();
+        apkSize = (a['size'] as num?)?.toInt() ?? 0;
         break;
       }
     }
@@ -57,7 +60,7 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
     if (build > mine) {
       return UpdateCheck(
         UpdateCheckResult.newer,
-        UpdateInfo(build, (data['body'] ?? '').toString(), apk),
+        UpdateInfo(build, (data['body'] ?? '').toString(), apk, apkSize),
       );
     }
     return const UpdateCheck(UpdateCheckResult.upToDate);
@@ -75,13 +78,30 @@ Future<String?> downloadAndInstall(
   try {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/schulportal-update-${info.build}.apk');
-    await Dio().download(
-      info.apkUrl,
-      file.path,
-      onReceiveProgress: (received, total) {
-        if (total > 0) onProgress(received / total);
-      },
-    );
+    // Bis zu 3 Versuche; unvollständige Dateien werden verworfen.
+    var complete = false;
+    for (var attempt = 0; attempt < 3 && !complete; attempt++) {
+      try {
+        if (await file.exists()) await file.delete();
+        await Dio().download(
+          info.apkUrl,
+          file.path,
+          onReceiveProgress: (received, total) {
+            if (total > 0) onProgress(received / total);
+          },
+        );
+        final len = await file.length();
+        complete = info.size <= 0 ? len > 0 : len == info.size;
+      } catch (_) {
+        complete = false;
+      }
+    }
+    if (!complete) {
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+      return 'Download unvollständig. Bitte mit stabiler Verbindung erneut versuchen.';
+    }
     final result = await OpenFile.open(
       file.path,
       type: 'application/vnd.android.package-archive',
