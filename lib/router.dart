@@ -15,6 +15,8 @@ import 'package:lanis/utils/glitchtip_navigation.dart';
 import 'package:lanis/view/login/auth.dart';
 import 'package:lanis/view/dashboard/dashboard_page.dart';
 import 'package:lanis/view/wear/wear_home.dart';
+import 'package:lanis/view/wear/wear_login_page.dart';
+import 'package:lanis/view/wear/wear_mode.dart';
 import 'package:lanis/view/moodle.dart';
 import 'package:lanis/view/privacy_policy/privacy_policy_screen.dart';
 import 'package:lanis/view/settings/settings_routes.dart';
@@ -195,8 +197,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', redirect: (context, state) => '/login'),
       GoRoute(
         path: '/login',
-        builder: (context, state) =>
-            Scaffold(body: LoginForm(showBackButton: context.canPop())),
+        builder: (context, state) => WearMode.enabled
+            ? const WearLoginPage()
+            : Scaffold(body: LoginForm(showBackButton: context.canPop())),
       ),
       GoRoute(
         path: '/dashboard',
