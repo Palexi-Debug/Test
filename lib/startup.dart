@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lanis/widgets/book_logo.dart';
 import 'package:lanis/utils/version_label.dart';
+import 'package:lanis/view/wear/wear_mode.dart';
 import 'package:go_router/go_router.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -102,6 +103,41 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
   }
 
   Widget _splashBody() {
+    if (WearMode.enabled) {
+      // Kompakte, runde Uhr-Ansicht
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AnimatedBookLogo(size: 96),
+              const SizedBox(height: 8),
+              const Text(
+                'Schulportal',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                versionLabel(),
+                style: const TextStyle(fontSize: 10, color: Colors.white54),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

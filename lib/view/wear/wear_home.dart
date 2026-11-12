@@ -7,6 +7,7 @@ import 'package:lanis/applets/timetable/definition.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
 import 'package:lanis/utils/updater.dart';
 import 'package:lanis/utils/version_label.dart';
+import 'package:lanis/view/secret/secret_page.dart';
 import 'package:lanis/view/wear/wear_substitutions_page.dart';
 import 'package:lanis/widgets/book_logo.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
@@ -459,7 +460,12 @@ class _WearUpdatePageState extends State<_WearUpdatePage> {
           children: [
             const BookLogo(size: 52),
             const SizedBox(height: 6),
-            Text(versionLabel(), style: const TextStyle(fontSize: 14)),
+            SecretBuildTap(
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Text(versionLabel(), style: const TextStyle(fontSize: 14)),
+              ),
+            ),
             const SizedBox(height: 4),
             if (_status.isNotEmpty)
               Text(
