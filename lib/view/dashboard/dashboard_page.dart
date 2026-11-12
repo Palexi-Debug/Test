@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:lanis/utils/garmin_sync.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -79,6 +81,21 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) showTutorialIfFirstTime(context);
     });
+    // Garmin-Uhr automatisch aktuell halten (nur wenn schon einmal gesendet)
+    Future.delayed(const Duration(seconds: 8), () {
+      if (mounted) autoSyncGarmin(ref);
+    });
+    _garminTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+      if (mounted) autoSyncGarmin(ref);
+    });
+  }
+
+  Timer? _garminTimer;
+
+  @override
+  void dispose() {
+    _garminTimer?.cancel();
+    super.dispose();
   }
 
   void _save() {

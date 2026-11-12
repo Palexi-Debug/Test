@@ -104,8 +104,25 @@ Future<String?> sendToGarmin(WidgetRef ref) async {
           'Ist sie installiert und die Uhr verbunden?';
     }
     await garmin.sendMessage({'lessons': lessonList, 'subs': subList});
+    ref.read(sharedOverAccountSettingsProvider).setString('garmin-enabled', '1');
     return null;
   } catch (e) {
     return 'Senden an die Garmin-Uhr ist fehlgeschlagen.';
   }
+}
+
+
+DateTime _lastAutoGarmin = DateTime.fromMillisecondsSinceEpoch(0);
+
+/// Automatischer Abgleich: nur wenn schon einmal erfolgreich an die Garmin-Uhr
+/// gesendet wurde, höchstens alle 8 Minuten, ohne Fehlermeldung.
+Future<void> autoSyncGarmin(WidgetRef ref) async {
+  try {
+    final shared = ref.read(sharedOverAccountSettingsProvider);
+    if (shared.getString('garmin-enabled') != '1') return;
+    final now = DateTime.now();
+    if (now.difference(_lastAutoGarmin) < const Duration(minutes: 8)) return;
+    _lastAutoGarmin = now;
+    await sendToGarmin(ref);
+  } catch (_) {}
 }
