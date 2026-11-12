@@ -96,12 +96,10 @@ class WearSubstitutionsPage extends ConsumerWidget {
       }
     }
 
-    return RefreshIndicator(
-      onRefresh: refresh ?? () async {},
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(28, 40, 28, 40),
-        children: children,
-      ),
+    // Kein Pull-to-Refresh: Wischen am Rand wechselt die Seite (WearHome).
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(28, 40, 34, 40),
+      children: children,
     );
   }
 

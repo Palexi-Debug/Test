@@ -24,6 +24,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
   final PageController _pages = PageController();
   int _page = 0;
   UpdateInfo? _update;
+  bool _switching = false;
 
   static const _count = 4;
 
@@ -61,16 +62,41 @@ class _WearHomeState extends ConsumerState<WearHome> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            PageView(
-              scrollDirection: Axis.vertical,
-              controller: _pages,
-              onPageChanged: (i) => setState(() => _page = i),
-              children: [
-                _WearTimetablePage(now: true, updateHint: _update != null),
-                const _WearTimetablePage(now: false),
-                const WearSubstitutionsPage(),
-                _WearUpdatePage(initial: _update),
-              ],
+            // Listen in den Seiten scrollen selbst; am Anfang/Ende wechselt
+            // ein weiteres Wischen zur vorherigen/nächsten Seite.
+            NotificationListener<ScrollNotification>(
+              onNotification: (n) {
+                if (n.depth == 0 || n.metrics.axis != Axis.vertical) {
+                  return false;
+                }
+                if (n is OverscrollNotification &&
+                    !_switching &&
+                    n.overscroll.abs() > 1) {
+                  _switching = true;
+                  const d = Duration(milliseconds: 300);
+                  if (n.overscroll < 0) {
+                    _pages.previousPage(duration: d, curve: Curves.easeOut);
+                  } else {
+                    _pages.nextPage(duration: d, curve: Curves.easeOut);
+                  }
+                  Future.delayed(
+                    const Duration(milliseconds: 600),
+                    () => _switching = false,
+                  );
+                }
+                return false;
+              },
+              child: PageView(
+                scrollDirection: Axis.vertical,
+                controller: _pages,
+                onPageChanged: (i) => setState(() => _page = i),
+                children: [
+                  _WearTimetablePage(now: true, updateHint: _update != null),
+                  const _WearTimetablePage(now: false),
+                  const WearSubstitutionsPage(),
+                  _WearUpdatePage(initial: _update),
+                ],
+              ),
             ),
             Positioned(
               right: 6,
