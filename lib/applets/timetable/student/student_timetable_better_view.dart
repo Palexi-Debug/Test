@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:dart_date/dart_date.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lanis/utils/deep_link.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:lanis/utils/liblanis_ui.dart';
 import 'package:intl/intl.dart';
@@ -216,6 +218,13 @@ class _StudentTimetableBetterViewState
                     ],
             );
 
+            final addLessonButton = FloatingActionButton.small(
+              heroTag: "add-lesson",
+              tooltip: 'Eigene Stunde / AG hinzufügen',
+              onPressed: () => context.push(SettingsDeepLinks.timetable),
+              child: const Icon(Icons.add_rounded),
+            );
+
             final switchPlanButton = timetable.planForOwn != null
                 ? FloatingActionButton(
                     heroTag: "toggle",
@@ -292,7 +301,17 @@ class _StudentTimetableBetterViewState
                   refresh: refresh,
                 ),
               ),
-              floatingActionButton: switchPlanButton,
+              floatingActionButton: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  addLessonButton,
+                  if (switchPlanButton != null) ...[
+                    const SizedBox(height: 12),
+                    switchPlanButton,
+                  ],
+                ],
+              ),
             );
           },
     );

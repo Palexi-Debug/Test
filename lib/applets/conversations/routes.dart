@@ -248,6 +248,7 @@ class _ConversationComposePageState
       type: data.type,
       subject: data.subject,
       receivers: data.receivers,
+      text: text,
     ));
   }
 

@@ -32,7 +32,11 @@ class Themes {
 
   Themes(this.lightTheme, this.darkTheme);
 
-  static Themes getNewTheme(Color seedColor) {
+  static Themes getNewTheme(
+    Color seedColor, {
+    double radius = 20,
+    double density = 0,
+  }) {
     // The basic theme, global theme data changes should be put here.
     ThemeData basicTheme(Brightness brightness) {
       final colorScheme = ColorScheme.fromSeed(
@@ -40,11 +44,13 @@ class Themes {
         brightness: brightness,
       );
       final roundedShape = RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(radius),
       );
+      final r14 = radius * 0.7;
       return ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
+        visualDensity: VisualDensity(horizontal: density, vertical: density),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: SoftFadePageTransitionsBuilder(),
@@ -62,11 +68,11 @@ class Themes {
           filled: true,
           fillColor: colorScheme.surfaceContainerHighest,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(r14),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(r14),
             borderSide: BorderSide(color: colorScheme.primary, width: 2),
           ),
         ),
@@ -77,36 +83,36 @@ class Themes {
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(r14),
             ),
             minimumSize: const Size(64, 48),
           ),
         ),
         listTileTheme: ListTileThemeData(shape: roundedShape),
         dialogTheme: DialogThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius * 1.4)),
         ),
-        bottomSheetTheme: const BottomSheetThemeData(
+        bottomSheetTheme: BottomSheetThemeData(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(radius * 1.4)),
           ),
         ),
         drawerTheme: DrawerThemeData(
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.horizontal(right: Radius.circular(radius * 1.4)),
           ),
         ),
         navigationBarTheme: NavigationBarThemeData(
           indicatorShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(radius * 0.8),
           ),
         ),
         floatingActionButtonTheme: FloatingActionButtonThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: roundedShape,
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r14)),
         ),
       );
     }
@@ -114,19 +120,23 @@ class Themes {
     return Themes(basicTheme(Brightness.light), basicTheme(Brightness.dark));
   }
 
+  static const Map<String, Color> seedColors = {
+    "pink": Colors.pink,
+    "red": Colors.red,
+    "orange": Colors.orange,
+    "yellow": Colors.yellow,
+    "lime": Colors.lime,
+    "light_green": Colors.lightGreen,
+    "green": Colors.green,
+    "teal": Colors.teal,
+    "cyan": Colors.cyan,
+    "blue": Colors.blue,
+    "indigo": Colors.indigo,
+    "purple": Colors.purple,
+  };
+
   static final Map<String, Themes> flutterColorThemes = {
-    "pink": getNewTheme(Colors.pink),
-    "red": getNewTheme(Colors.red),
-    "orange": getNewTheme(Colors.orange),
-    "yellow": getNewTheme(Colors.yellow),
-    "lime": getNewTheme(Colors.lime),
-    "light_green": getNewTheme(Colors.lightGreen),
-    "green": getNewTheme(Colors.green),
-    "teal": getNewTheme(Colors.teal),
-    "cyan": getNewTheme(Colors.cyan),
-    "blue": getNewTheme(Colors.blue),
-    "indigo": getNewTheme(Colors.indigo),
-    "purple": getNewTheme(Colors.purple),
+    for (final e in seedColors.entries) e.key: getNewTheme(e.value),
   };
 
   // Will be later set by DynamicColorBuilder in main.dart App().

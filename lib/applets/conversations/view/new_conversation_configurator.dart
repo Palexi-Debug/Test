@@ -22,12 +22,15 @@ class TriggerRebuild with ChangeNotifier {
 class _NewConversationConfiguratorState
     extends ConsumerState<NewConversationConfigurator> {
   final TextEditingController subjectController = TextEditingController();
+  final TextEditingController messageController = TextEditingController();
   final List<TagReceiverEntry> receivers = [];
   final TriggerRebuild rebuildSearch = TriggerRebuild();
   ChatType selectedChatType = ChatType.values[2];
 
   bool get isFormValid =>
-      subjectController.text.trim().isNotEmpty && receivers.isNotEmpty;
+      subjectController.text.trim().isNotEmpty &&
+      messageController.text.trim().isNotEmpty &&
+      receivers.isNotEmpty;
 
   void _clearAll() {
     setState(() {
@@ -47,6 +50,7 @@ class _NewConversationConfiguratorState
           : null,
       subject: subjectController.text.trim(),
       receivers: receivers.map((entry) => entry.id).toList(),
+      text: messageController.text.trim(),
     );
 
     Navigator.pop(context, chatData);
@@ -55,6 +59,7 @@ class _NewConversationConfiguratorState
   @override
   void dispose() {
     subjectController.dispose();
+    messageController.dispose();
     rebuildSearch.dispose();
     super.dispose();
   }
@@ -104,6 +109,44 @@ class _NewConversationConfiguratorState
                   ),
                   maxLines: null,
                   autofocus: true,
+                  onChanged: (value) => setState(() {}),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Message Section
+          Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.edit_note, color: Colors.purple),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Nachricht',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: messageController,
+                  decoration: const InputDecoration(
+                    hintText: 'Deine Nachricht …',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  minLines: 4,
+                  maxLines: 10,
+                  keyboardType: TextInputType.multiline,
+                  textCapitalization: TextCapitalization.sentences,
                   onChanged: (value) => setState(() {}),
                 ),
               ],

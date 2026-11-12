@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,8 @@ import 'package:liblanis/liblanis.dart';
 import 'package:lanis/applets/definitions.dart';
 import 'package:lanis/shell_navigation.dart';
 import 'package:lanis/utils/deep_link.dart';
+import 'package:lanis/utils/look.dart';
+import 'package:lanis/utils/theme_settings.dart';
 import 'package:lanis/utils/whats_new.dart';
 import 'package:lanis/view/server_status_page.dart';
 import 'package:lanis/view/tutorial/tutorial_page.dart';
@@ -98,26 +102,24 @@ class AppBottomBar extends ConsumerWidget {
     }
     final selected = items.indexWhere((i) => i.key == selectedKey);
 
-    return NavigationBar(
-      selectedIndex: selected < 0 ? items.length - 1 : selected,
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      animationDuration: const Duration(milliseconds: 400),
-      destinations: [
-        for (final i in items)
-          NavigationDestination(
-            label: i.label,
-            icon: i.icon,
-            selectedIcon: i.selectedIcon,
-          ),
-      ],
-      onDestinationSelected: (index) {
-        // Zu schnelles Wechseln ignorieren (verhindert graue Bildschirme).
-        final now = DateTime.now();
-        if (now.difference(_lastTap) < const Duration(milliseconds: 450)) return;
-        _lastTap = now;
-        if (items[index].key == selectedKey && selectedKey != 'more') return;
-        items[index].onTap();
-      },
+    final theme = ref.watch(themeSettingsProvider);
+    final showLabels = theme['nav-labels'] as bool;
+    final activeIndex = selected < 0 ? items.length - 1 : selected;
+
+    void onSelect(int index) {
+      // Zu schnelles Wechseln ignorieren (verhindert graue Bildschirme).
+      final now = DateTime.now();
+      if (now.difference(_lastTap) < const Duration(milliseconds: 450)) return;
+      _lastTap = now;
+      if (items[index].key == selectedKey && selectedKey != 'more') return;
+      items[index].onTap();
+    }
+
+    return _AnimatedBar(
+      items: items,
+      activeIndex: activeIndex,
+      showLabels: showLabels,
+      onSelect: onSelect,
     );
   }
 
@@ -230,6 +232,170 @@ class AppBottomBar extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+
+/// Eigene, animierte untere Leiste: gleitende Markierung, hüpfende Symbole,
+/// weicher Wechsel zwischen Umriss- und gefülltem Symbol.
+class _AnimatedBar extends StatelessWidget {
+  final List<_BarItem> items;
+  final int activeIndex;
+  final bool showLabels;
+  final ValueChanged<int> onSelect;
+
+  const _AnimatedBar({
+    required this.items,
+    required this.activeIndex,
+    required this.showLabels,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final lively = AppLook.anim == 2;
+    final curve = lively ? Curves.easeOutBack : Curves.easeOutCubic;
+    final slide = AppLook.dur(320);
+    final fast = AppLook.dur(220);
+    const double top = 10;
+    const double pillH = 32;
+    final double barH = showLabels ? 72 : 58;
+
+    return Material(
+      color: scheme.surfaceContainer,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: barH,
+          child: LayoutBuilder(
+            builder: (context, c) {
+              final w = c.maxWidth / items.length;
+              final pillW = math.min(w - 8, 64.0);
+              return Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: slide,
+                    curve: curve,
+                    left: w * activeIndex + (w - pillW) / 2,
+                    top: top,
+                    width: pillW,
+                    height: pillH,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: scheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(pillH / 2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        Expanded(
+                          child: _BarButton(
+                            item: items[i],
+                            selected: i == activeIndex,
+                            showLabel: showLabels,
+                            top: top,
+                            pillH: pillH,
+                            fast: fast,
+                            lively: lively,
+                            onTap: () => onSelect(i),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarButton extends StatelessWidget {
+  final _BarItem item;
+  final bool selected;
+  final bool showLabel;
+  final double top;
+  final double pillH;
+  final Duration fast;
+  final bool lively;
+  final VoidCallback onTap;
+
+  const _BarButton({
+    required this.item,
+    required this.selected,
+    required this.showLabel,
+    required this.top,
+    required this.pillH,
+    required this.fast,
+    required this.lively,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = selected ? scheme.onSecondaryContainer : scheme.onSurfaceVariant;
+    final scale = selected ? (lively ? 1.22 : 1.08) : 1.0;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: EdgeInsets.only(top: top),
+          child: Column(
+            children: [
+              SizedBox(
+                height: pillH,
+                child: Center(
+                  child: AnimatedScale(
+                    scale: scale,
+                    duration: fast,
+                    curve: lively ? Curves.elasticOut : Curves.easeOutCubic,
+                    child: AnimatedSwitcher(
+                      duration: fast,
+                      switchInCurve: Curves.easeOut,
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: ScaleTransition(scale: anim, child: child),
+                      ),
+                      child: IconTheme(
+                        key: ValueKey(selected),
+                        data: IconThemeData(color: color, size: 24),
+                        child: selected ? item.selectedIcon : item.icon,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (showLabel) ...[
+                const SizedBox(height: 4),
+                AnimatedDefaultTextStyle(
+                  duration: fast,
+                  style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                    color: color,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

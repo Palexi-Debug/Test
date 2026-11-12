@@ -480,12 +480,16 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
         '/common/conversations/compose',
       );
       if (!mounted || chatData == null) return;
-      final text = await Navigator.of(context).push<String>(
-        MaterialPageRoute(
-          builder: (context) =>
-              FullScreenConversationsMessageInput(creationData: chatData),
-        ),
-      );
+      final String? text =
+          (chatData.text != null && chatData.text!.trim().isNotEmpty)
+          ? chatData.text
+          : await Navigator.of(context).push<String>(
+              MaterialPageRoute(
+                builder: (context) => FullScreenConversationsMessageInput(
+                  creationData: chatData,
+                ),
+              ),
+            );
       if (text == null || text.trim().isEmpty) return;
       if (mounted) {
         newConversation(text, chatData);

@@ -380,7 +380,7 @@ class ConversationsParser extends AppletParser<List<OverviewEntry>> {
         'to': sender,
         'groupOnly': groupOnly,
         'privateAnswerOnly': privateAnswerOnly,
-        'message': message,
+        'message': _encodeNonAscii(message),
         'replyToMsg': headId,
       };
 
@@ -448,8 +448,8 @@ class ConversationsParser extends AppletParser<List<OverviewEntry>> {
   ) async {
     try {
       final List<Map<String, String>> createData = [
-        {'name': 'subject', 'value': subject},
-        {'name': 'text', 'value': text},
+        {'name': 'subject', 'value': _encodeNonAscii(subject)},
+        {'name': 'text', 'value': _encodeNonAscii(text)},
       ];
 
       if (type != null) {
@@ -704,4 +704,20 @@ class OverviewFiltering {
 
     return newEntries;
   }
+}
+
+
+/// Der Server macht aus Umlauten und Sonderzeichen sonst Fragezeichen.
+/// Deshalb werden alle Zeichen über ASCII als HTML-Entities gesendet
+/// (beim Lesen werden sie per `unescape` wieder zurückgewandelt).
+String _encodeNonAscii(String input) {
+  final buffer = StringBuffer();
+  for (final rune in input.runes) {
+    if (rune > 127) {
+      buffer.write('&#$rune;');
+    } else {
+      buffer.writeCharCode(rune);
+    }
+  }
+  return buffer.toString();
 }

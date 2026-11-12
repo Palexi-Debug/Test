@@ -17,6 +17,7 @@ import 'package:lanis/bridge/legacy_storage_cleanup.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/router.dart';
 import 'package:lanis/themes.dart';
+import 'package:lanis/utils/look.dart';
 import 'package:lanis/utils/glitchtip.dart';
 import 'package:lanis/utils/logger.dart';
 import 'package:lanis/utils/mono_text_viewer.dart';
@@ -146,6 +147,36 @@ class App extends ConsumerWidget {
           }
         }
 
+        AppLook.anim = snapshot['look-anim'] as int;
+        AppLook.ttIntensity = snapshot['tt-intensity'] as double;
+        final double lookRadius = snapshot['look-radius'] as double;
+        final double lookDensity = snapshot['look-density'] as double;
+        final Color? customSeed = AppLook.parseHex(
+          snapshot['accent-hex'] as String,
+        );
+        final bool customColor = snapshot['color'] == 'custom';
+        if (customColor || lookRadius != 20.0 || lookDensity != 0.0) {
+          Color? seed;
+          if (customColor) {
+            seed = customSeed;
+          } else if (snapshot['color'] == 'dynamic') {
+            seed = lightDynamic?.primary;
+          } else if (snapshot['color'] == 'standard') {
+            seed = Colors.indigo;
+          } else {
+            seed = Themes.seedColors[snapshot['color']];
+          }
+          seed ??= Colors.indigo;
+          theme = Themes.getNewTheme(
+            seed,
+            radius: lookRadius,
+            density: lookDensity,
+          );
+          if (snapshot['is-amoled'] == true) {
+            theme = Themes.getAmoledThemes(theme);
+          }
+        }
+
         final lightTheme =
             theme.lightTheme ?? Themes.standardTheme.lightTheme!;
         final darkTheme =
@@ -167,6 +198,17 @@ class App extends ConsumerWidget {
           darkTheme: darkTheme,
           themeMode: mode,
           routerConfig: router,
+          builder: (context, child) {
+            final font = snapshot['look-font'] as double;
+            if (font == 1.0 || child == null) return child ?? const SizedBox();
+            final mq = MediaQuery.of(context);
+            return MediaQuery(
+              data: mq.copyWith(
+                textScaler: TextScaler.linear(mq.textScaler.scale(1.0) * font),
+              ),
+              child: child,
+            );
+          },
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,

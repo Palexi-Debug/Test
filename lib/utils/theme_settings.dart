@@ -19,6 +19,16 @@ final themeSettingsProvider = Provider<Map<String, dynamic>>((ref) {
     'color': settings.getString('color') ?? 'standard',
     'theme': settings.getString('theme') ?? 'system',
     'is-amoled': settings.getBool('is-amoled') ?? false,
+    'accent-hex': settings.getString('accent-hex') ?? '',
+    'look-radius':
+        double.tryParse(settings.getString('look-radius') ?? '') ?? 20.0,
+    'look-font': double.tryParse(settings.getString('look-font') ?? '') ?? 1.0,
+    'look-density':
+        double.tryParse(settings.getString('look-density') ?? '') ?? 0.0,
+    'look-anim': int.tryParse(settings.getString('look-anim') ?? '') ?? 1,
+    'nav-labels': settings.getString('nav-labels') != '0',
+    'tt-intensity':
+        double.tryParse(settings.getString('tt-intensity') ?? '') ?? 1.0,
   };
 });
 

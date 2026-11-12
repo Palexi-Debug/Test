@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:lanis/utils/liblanis_ui.dart';
+import 'package:lanis/utils/look.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lanis/applets/conversations/view/shared.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_better_view.dart';
@@ -211,10 +212,16 @@ class ItemBlock extends StatelessWidget {
   static Color soften(BuildContext context, Color c) {
     final hsl = HSLColor.fromColor(c);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return hsl
+    final base = hsl
         .withSaturation(min(hsl.saturation, 0.5))
         .withLightness(dark ? 0.30 + hsl.lightness * 0.14 : 0.74 + hsl.lightness * 0.12)
         .toColor();
+    if (AppLook.ttIntensity >= 0.999) return base;
+    return Color.lerp(
+      Theme.of(context).colorScheme.surfaceContainerHigh,
+      base,
+      AppLook.ttIntensity,
+    )!;
   }
 
   Widget _colorContainer(double width, {Widget? child, Color? shown}) {

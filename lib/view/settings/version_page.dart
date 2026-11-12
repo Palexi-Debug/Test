@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lanis/widgets/book_logo.dart';
+import 'package:lanis/utils/version_label.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:lanis/utils/updater.dart';
@@ -144,19 +146,7 @@ class _VersionPageState extends State<VersionPage> {
         children: [
           const SizedBox(height: 8),
           Center(
-            child: Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.menu_book_rounded,
-                size: 48,
-                color: scheme.onPrimaryContainer,
-              ),
-            ),
+            child: const AnimatedBookLogo(size: 110),
           ),
           const SizedBox(height: 12),
           Center(child: Text('Schulportal', style: text.headlineSmall)),
@@ -165,21 +155,12 @@ class _VersionPageState extends State<VersionPage> {
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Text(
-                  'Build $currentBuildId',
+                  versionLabel(),
                   style: text.titleMedium?.copyWith(color: scheme.primary),
                 ),
               ),
             ),
           ),
-          if (_version.isNotEmpty)
-            Center(
-              child: Text(
-                'Version $_version',
-                style: text.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ),
           const SizedBox(height: 24),
           Card(
             child: Padding(

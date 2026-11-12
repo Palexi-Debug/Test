@@ -17,11 +17,13 @@ class ChatCreationData {
   final ChatType? type;
   final String subject;
   final List<String> receivers;
+  final String? text;
 
   ChatCreationData({
     required this.type,
     required this.subject,
     required this.receivers,
+    this.text,
   });
 }
 

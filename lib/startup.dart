@@ -1,10 +1,10 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:lanis/widgets/book_logo.dart';
+import 'package:lanis/utils/version_label.dart';
 import 'package:go_router/go_router.dart';
 import 'package:liblanis/liblanis.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/features/auth/auth_controller.dart';
@@ -106,20 +106,7 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 900),
-            curve: Curves.easeOutBack,
-            builder: (context, v, child) => Opacity(
-              opacity: v.clamp(0.0, 1.0),
-              child: Transform.scale(scale: 0.6 + 0.4 * v, child: child),
-            ),
-            child: SvgPicture.asset(
-              'assets/startup.svg',
-              height: 110,
-              width: 110,
-            ),
-          ),
+          const AnimatedBookLogo(size: 150),
           const SizedBox(height: 16),
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: 1),
@@ -137,15 +124,9 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
           const SizedBox(height: 24),
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          FutureBuilder(
-            future: PackageInfo.fromPlatform(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const SizedBox.shrink();
-              return Text(
-                'v${snapshot.data!.version}+${snapshot.data!.buildNumber}',
-                style: Theme.of(context).textTheme.bodySmall,
-              );
-            },
+          Text(
+            versionLabel(),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
