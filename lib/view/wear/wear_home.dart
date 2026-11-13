@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liblanis/liblanis.dart';
+import 'package:watch_connectivity/watch_connectivity.dart';
+import 'package:lanis/utils/watch_sync.dart';
 import 'package:lanis/applets/timetable/definition.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
 import 'package:lanis/utils/updater.dart';
@@ -29,9 +31,28 @@ class _WearHomeState extends ConsumerState<WearHome> {
 
   static const _count = 4;
 
+  final WatchConnectivity _watch = WatchConnectivity();
+  final List<StreamSubscription> _subs = [];
+  int _ttRev = 0;
+
+  void _onPhoneData(Map<String, dynamic> m) {
+    final ok = applyTimetableFromPhone(
+      m,
+      ref.read(accountSpecificSettingsProvider),
+    );
+    if (ok && mounted) setState(() => _ttRev++);
+  }
+
   @override
   void initState() {
     super.initState();
+    _subs.add(_watch.messageStream.listen(_onPhoneData));
+    _subs.add(_watch.contextStream.listen(_onPhoneData));
+    _watch.receivedApplicationContexts.then((list) {
+      for (final m in list) {
+        _onPhoneData(m);
+      }
+    }).catchError((_) {});
     checkForUpdate(wear: true).then((r) {
       if (mounted && r.result == UpdateCheckResult.newer) {
         setState(() => _update = r.info);
@@ -41,6 +62,9 @@ class _WearHomeState extends ConsumerState<WearHome> {
 
   @override
   void dispose() {
+    for (final s in _subs) {
+      s.cancel();
+    }
     _pages.dispose();
     super.dispose();
   }
@@ -92,8 +116,12 @@ class _WearHomeState extends ConsumerState<WearHome> {
                 controller: _pages,
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
-                  _WearTimetablePage(now: true, updateHint: _update != null),
-                  const _WearTimetablePage(now: false),
+                  _WearTimetablePage(
+                    key: ValueKey('now$_ttRev'),
+                    now: true,
+                    updateHint: _update != null,
+                  ),
+                  _WearTimetablePage(key: ValueKey('today$_ttRev'), now: false),
                   const WearSubstitutionsPage(),
                   _WearUpdatePage(initial: _update),
                 ],
@@ -149,7 +177,11 @@ const _weekdays = [
 class _WearTimetablePage extends ConsumerStatefulWidget {
   final bool now;
   final bool updateHint;
-  const _WearTimetablePage({required this.now, this.updateHint = false});
+  const _WearTimetablePage({
+    super.key,
+    required this.now,
+    this.updateHint = false,
+  });
 
   @override
   ConsumerState<_WearTimetablePage> createState() => _WearTimetablePageState();
@@ -189,10 +221,11 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage> {
           AccountType.student,
       builder: (context, timetable, accountType, settings, update, refresh) {
         final base = timetable.planForOwn ?? timetable.planForAll ?? const [];
+        final hidden = (settings['hidden-lessons'] as List?) ?? const [];
         final plan = TimeTableHelper.mergeByIndices(
           base,
           TimeTableHelper.getCustomLessons(settings),
-        );
+        ).map((day) => day.where((l) => !hidden.contains(l.id)).toList()).toList();
         return widget.now
             ? _buildNow(context, plan)
             : _buildToday(context, plan);

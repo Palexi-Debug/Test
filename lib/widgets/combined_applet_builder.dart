@@ -5,6 +5,7 @@ import 'package:liblanis/liblanis.dart';
 
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/utils/applet_settings.dart';
+import 'package:lanis/utils/watch_sync.dart';
 import 'error_view.dart';
 
 typedef RefreshFunction = Future<void> Function();
@@ -84,6 +85,11 @@ class _CombinedAppletBuilderState<T>
     if (settings == null) return;
     final namespaced = _settingKey(key);
     persistAppletSetting(settings, namespaced, value);
+    if (widget.phpUrl == 'stundenplan.php' &&
+        const ['custom-lessons', 'hidden-lessons', 'lesson-colors']
+            .contains(key)) {
+      syncTimetableToWatch(settings);
+    }
     setState(() {
       if (value is Map) {
         appletSettings[key] = Map<String, dynamic>.from(value);
