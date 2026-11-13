@@ -585,6 +585,11 @@ class TimeTableView extends StatelessWidget {
                           data: data,
                           timetableDays: data.timetableDays,
                           i: i,
+                          date: DateTime(
+                            weekStart.year,
+                            weekStart.month,
+                            weekStart.day + i,
+                          ),
                           width: constraints.maxWidth,
                           settings: settings,
                           updateSettings: updateSettings,

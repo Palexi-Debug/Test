@@ -8,6 +8,9 @@ class AppLook {
   /// Farbintensität der Stundenplan-Kacheln (0.3 – 1.0)
   static double ttIntensity = 1.0;
 
+  /// Ausgefallene Stunden im Stundenplan grau darstellen
+  static bool greyCancelled = true;
+
   static Duration dur(int ms) {
     if (anim == 0) return Duration.zero;
     return Duration(milliseconds: anim == 2 ? (ms * 1.4).round() : ms);

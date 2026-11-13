@@ -8,6 +8,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:lanis/applets/conversations/view/shared.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_better_view.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
+import 'package:lanis/applets/timetable/student/cancelled.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/utils/root_nav.dart';
 
@@ -21,6 +22,7 @@ class ItemBlock extends StatelessWidget {
   final double? hOffset;
   final bool onlyColor;
   final bool disableAction;
+  final bool cancelled;
 
   final Map<String, dynamic> settings;
   final Function updateSettings;
@@ -38,6 +40,7 @@ class ItemBlock extends StatelessWidget {
     required this.settings,
     required this.updateSettings,
     this.disableAction = false,
+    this.cancelled = false,
   });
 
   void showColorPicker(
@@ -245,10 +248,18 @@ class ItemBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color? shown = (color != null && subject != null)
+    Color? shown = (color != null && subject != null)
         ? soften(context, color!)
         : color;
+    if (cancelled && shown != null) {
+      shown = Color.lerp(
+        Theme.of(context).colorScheme.surfaceContainerHigh,
+        Colors.grey,
+        0.35,
+      );
+    }
     TextStyle textStyle = TextStyle(
+      decoration: cancelled ? TextDecoration.lineThrough : null,
       fontSize: 12,
       color: shown != null
           ? shown.computeLuminance() > 0.5
@@ -341,6 +352,7 @@ class ListItem extends StatelessWidget {
   final double width;
   final Map<String, dynamic> settings;
   final Function updateSettings;
+  final DateTime? date;
 
   const ListItem({
     super.key,
@@ -352,6 +364,7 @@ class ListItem extends StatelessWidget {
     required this.width,
     required this.settings,
     required this.updateSettings,
+    this.date,
   });
 
   @override
@@ -466,6 +479,9 @@ class ListItem extends StatelessWidget {
                       ((subject.duration - 1) * 8) +
                       (numPauses * (pauseHeight + 8)),
                   color: TimeTableHelper.getColorForLesson(settings, subject),
+                  cancelled:
+                      date != null &&
+                      isLessonCancelled(context, subject, date!, data.hours),
                   offset: verticalOffset,
                   // Calculate left offset based on subject index and max overlapping subjects
                   hOffset: hOffset + (maxNum >= 2 ? 0 : 0),

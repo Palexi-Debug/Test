@@ -149,6 +149,7 @@ class App extends ConsumerWidget {
 
         AppLook.anim = snapshot['look-anim'] as int;
         AppLook.ttIntensity = snapshot['tt-intensity'] as double;
+        AppLook.greyCancelled = snapshot['tt-grey-cancelled'] as bool;
         final double lookRadius = snapshot['look-radius'] as double;
         final double lookDensity = snapshot['look-density'] as double;
         final Color? customSeed = AppLook.parseHex(

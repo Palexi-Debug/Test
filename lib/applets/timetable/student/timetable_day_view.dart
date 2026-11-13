@@ -7,6 +7,7 @@ import 'package:liblanis/liblanis.dart';
 import 'package:lanis/applets/timetable/definition.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_item.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
+import 'package:lanis/applets/timetable/student/cancelled.dart';
 import 'package:lanis/utils/liblanis_ui.dart';
 import 'package:lanis/widgets/entrance.dart';
 
@@ -291,7 +292,19 @@ class _TimetableDayViewState extends State<TimetableDayView> {
     int nowMin,
   ) {
     final raw = TimeTableHelper.getColorForLesson(widget.settings, s);
-    final bg = ItemBlock.soften(context, raw);
+    final cancelled = isLessonCancelled(
+      context,
+      s,
+      _dateOf(_day),
+      widget.data.hours,
+    );
+    final bg = cancelled
+        ? Color.lerp(
+            Theme.of(context).colorScheme.surfaceContainerHigh,
+            Colors.grey,
+            0.35,
+          )!
+        : ItemBlock.soften(context, raw);
     final fg = bg.computeLuminance() > 0.5 ? Colors.black : Colors.white;
     final a = _min(s.startTime);
     final b = _min(s.endTime);
@@ -353,6 +366,9 @@ class _TimetableDayViewState extends State<TimetableDayView> {
                           Text(
                             s.name ?? '',
                             style: TextStyle(
+                              decoration: cancelled
+                                  ? TextDecoration.lineThrough
+                                  : null,
                               color: fg,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -366,6 +382,7 @@ class _TimetableDayViewState extends State<TimetableDayView> {
                               if (s.raum != null && s.raum!.isNotEmpty)
                                 'Raum ${s.raum!}',
                               if (s.duration > 1) 'Doppelstunde',
+                              if (cancelled) 'entfällt',
                             ].join(' · '),
                             style: TextStyle(color: sub),
                           ),

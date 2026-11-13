@@ -30,6 +30,7 @@ final themeSettingsProvider = Provider<Map<String, dynamic>>((ref) {
     'look-center': settings.getString('look-center') == '1',
     'nav-order': settings.getString('nav-order') ?? '',
     'nav-labels': settings.getString('nav-labels') != '0',
+    'tt-grey-cancelled': settings.getString('tt-grey-cancelled') != '0',
     'tt-intensity':
         double.tryParse(settings.getString('tt-intensity') ?? '') ?? 1.0,
   };
