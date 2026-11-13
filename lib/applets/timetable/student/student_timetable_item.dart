@@ -337,6 +337,7 @@ class ItemBlock extends StatelessWidget {
     required this.updateSettings,
     required this.settings,
   }) : subject = null,
+       cancelled = false,
        color = null,
        onlyColor = false,
        disableAction = true,
