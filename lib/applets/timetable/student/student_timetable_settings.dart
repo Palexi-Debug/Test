@@ -70,6 +70,8 @@ class _StudentTimetableSettingsState
     final TextEditingController teacherController = TextEditingController();
     final TextEditingController roomController = TextEditingController();
     int duration = 1;
+    int day = currentDay;
+    const dayNames = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
 
     if (lesson != null) {
       nameController.text = lesson.name ?? '';
@@ -97,14 +99,15 @@ class _StudentTimetableSettingsState
       builder: (context1) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 32.0,
+            bottom: MediaQuery.of(context1).viewInsets.bottom + 32.0,
             right: 16.0,
             left: 16.0,
             top: 16.0,
           ),
           child: StatefulBuilder(
             builder: (context1, setState) {
-              return Column(
+              return SingleChildScrollView(
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 spacing: 16.0,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -141,6 +144,18 @@ class _StudentTimetableSettingsState
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                  DropdownMenu<int>(
+                    expandedInsets: EdgeInsets.zero,
+                    label: const Text('Tag'),
+                    initialSelection: day,
+                    onSelected: (value) {
+                      if (value != null) setState(() => day = value);
+                    },
+                    dropdownMenuEntries: [
+                      for (var i = 0; i < 7; i++)
+                        DropdownMenuEntry(value: i, label: dayNames[i]),
                     ],
                   ),
                   Row(
@@ -230,7 +245,7 @@ class _StudentTimetableSettingsState
                             hours.indexOf(startTime) <= hours.indexOf(endTime))
                         ? () {
                             TimetableSubject newLesson = TimetableSubject(
-                              id: 'custom${nameController.text.replaceAll('-', '_')}-$currentDay-${startTime.startTime.hour}-${startTime.startTime.minute}',
+                              id: 'custom${nameController.text.replaceAll('-', '_')}-$day-${startTime.startTime.hour}-${startTime.startTime.minute}',
                               name: nameController.text,
                               raum: roomController.text.isEmpty
                                   ? null
@@ -255,14 +270,14 @@ class _StudentTimetableSettingsState
                             List<List<TimetableSubject>> days =
                                 TimeTableHelper.getCustomLessons(settings) ??
                                 List.generate(7, (_) => <TimetableSubject>[]);
-                            while (days.length <= currentDay) {
+                            while (days.length <= 6) {
                               days.add(<TimetableSubject>[]);
                             }
 
                             if (lesson != null) {
                               days[currentDay].remove(lesson);
                             }
-                            days[currentDay].add(newLesson);
+                            days[day].add(newLesson);
 
                             updateSettings('custom-lessons', days);
                             popRootDialog(context1);
@@ -281,7 +296,7 @@ class _StudentTimetableSettingsState
                     ),
                   ),
                 ],
-              );
+              ));
             },
           ),
         );
