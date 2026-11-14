@@ -26,6 +26,8 @@ Daten kommen automatisch vom Handy, Updates moeglichst automatisch.
 - Neuestes Release: `garmin-15` (Datei `Schulportal-venusq2.prg`), Build gruen. Das neue Layout kompiliert
   (Fix: Schriften als `Graphics.FontType` typisiert, `fit()` gibt `Graphics.FontType` zurueck).
   Launcher-Icon ist jetzt 40x40. Auf der Uhr ist das neue Layout NOCH NICHT getestet.
+- Version 0.1.1 (Commit "Info-Seite"): neue 4. Seite "Info" mit Versionsnummer (`DataStore.VERSION`, muss zu
+  `manifest.xml` passen), Sync-Stand und Hinweis Live/Beispiel. Ungetestet auf der Uhr.
 - Seiten Jetzt/Heute/Vertretungen laufen, wischen/tippen blaettert. Anfangs Beispieldaten.
 - Layout im ersten Stand war schlecht (Texte ueberlappten, Vertretungen unuebersichtlich) ->
   neu gebaut (Commit "Layout neu"): feste Zeilenhoehen, Karten, Fortschrittsbalken, "Stand HH:MM".
