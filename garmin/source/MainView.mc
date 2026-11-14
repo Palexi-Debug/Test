@@ -3,11 +3,11 @@ import Toybox.Lang;
 import Toybox.System;
 import Toybox.WatchUi;
 
-// Seiten: 0 Jetzt, 1 Heute, 2 Vertretungen
+// Seiten: 0 Jetzt, 1 Heute, 2 Vertretungen, 3 Info
 class MainView extends WatchUi.View {
 
     static var page = 0;
-    const PAGES = 3;
+    const PAGES = 4;
     const ACCENT = 0x7986CB;
     const AMBER = 0xFFC107;
     const RED = 0xFF5252;
@@ -39,7 +39,7 @@ class MainView extends WatchUi.View {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
         dc.clear();
 
-        var titles = ["Jetzt", "Heute", "Vertretungen"];
+        var titles = ["Jetzt", "Heute", "Vertretungen", "Info"];
         dc.setColor(ACCENT, Graphics.COLOR_TRANSPARENT);
         dc.drawText(w / 2, 10, Graphics.FONT_SMALL, titles[page], Graphics.TEXT_JUSTIFY_CENTER);
 
@@ -50,8 +50,10 @@ class MainView extends WatchUi.View {
             drawNow(dc, w, h, now);
         } else if (page == 1) {
             drawToday(dc, w, h, now);
-        } else {
+        } else if (page == 2) {
             drawSubs(dc, w, h);
+        } else {
+            drawInfo(dc, w, h);
         }
 
         // Fuss: Stand links, Seitenpunkte mittig
@@ -166,6 +168,32 @@ class MainView extends WatchUi.View {
         }
     }
 
+    function drawInfo(dc as Dc, w as Number, h as Number) as Void {
+        var y = TOP + 8;
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(w / 2, y, Graphics.FONT_MEDIUM, "Version " + DataStore.VERSION, Graphics.TEXT_JUSTIFY_CENTER);
+        y += Graphics.getFontHeight(Graphics.FONT_MEDIUM) + 16;
+
+        var status;
+        if (DataStore.live && DataStore.syncMin >= 0) {
+            dc.setColor(AMBER, Graphics.COLOR_TRANSPARENT);
+            status = "Daten live, Stand " + hm(DataStore.syncMin);
+        } else {
+            dc.setColor(RED, Graphics.COLOR_TRANSPARENT);
+            status = "Nur Beispieldaten";
+        }
+        var f = fit(dc, status, w - 24, [Graphics.FONT_SMALL, Graphics.FONT_TINY, Graphics.FONT_XTINY]);
+        dc.drawText(w / 2, y, f, status, Graphics.TEXT_JUSTIFY_CENTER);
+        y += Graphics.getFontHeight(f) + 16;
+
+        if (!DataStore.live) {
+            dc.setColor(0x999999, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(w / 2, y, Graphics.FONT_XTINY, "Handy-App: Einstellungen", Graphics.TEXT_JUSTIFY_CENTER);
+            y += Graphics.getFontHeight(Graphics.FONT_XTINY) + 2;
+            dc.drawText(w / 2, y, Graphics.FONT_XTINY, "> An Garmin-Uhr senden", Graphics.TEXT_JUSTIFY_CENTER);
+        }
+    }
+
     function drawSubs(dc as Dc, w as Number, h as Number) as Void {
         var size = DataStore.subs.size();
         if (size == 0) {
@@ -217,13 +245,13 @@ class MainDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onNextPage() as Boolean {
-        MainView.page = (MainView.page + 1) % 3;
+        MainView.page = (MainView.page + 1) % 4;
         WatchUi.requestUpdate();
         return true;
     }
 
     function onPreviousPage() as Boolean {
-        MainView.page = (MainView.page + 2) % 3;
+        MainView.page = (MainView.page + 3) % 4;
         WatchUi.requestUpdate();
         return true;
     }

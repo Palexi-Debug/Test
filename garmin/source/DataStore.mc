@@ -3,6 +3,9 @@ import Toybox.System;
 
 // Aktuelle Daten. s/e = Start/Ende in Minuten seit 0 Uhr.
 module DataStore {
+    // Muss zur version in manifest.xml passen.
+    const VERSION = "0.1.1";
+
     var live = false;
     var syncMin = -1;
 
