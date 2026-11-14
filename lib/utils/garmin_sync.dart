@@ -18,10 +18,49 @@ int _min(SphTimeOfDay t) => t.hour * 60 + t.minute;
 /// Schickt Stundenplan und Vertretungen (heute, sonst nächster Schultag)
 /// an die Garmin-Uhr. Gibt eine Fehlermeldung zurück oder null bei Erfolg.
 Future<String?> sendToGarmin(WidgetRef ref) async {
+  TimeTable? tt;
+  SubstitutionPlan? sp;
   try {
-    final tt =
+    tt =
         (ref.read(timetableParserProvider) as dynamic).latestResponse?.content
             as TimeTable?;
+  } catch (_) {}
+  try {
+    sp =
+        (ref.read(substitutionsParserProvider) as dynamic).latestResponse
+                ?.content
+            as SubstitutionPlan?;
+  } catch (_) {}
+  final err = await _sendData(tt, sp);
+  if (err == null) {
+    ref.read(sharedOverAccountSettingsProvider).setString('garmin-enabled', '1');
+  }
+  return err;
+}
+
+/// Hintergrund-Variante (ohne Oberfläche): holt Stundenplan und Vertretungen
+/// frisch vom Server und schickt sie an die Uhr. Nur wenn schon einmal
+/// erfolgreich gesendet wurde. Erwartet eine angemeldete Sitzung.
+Future<void> sendToGarminHeadless(ProviderContainer container) async {
+  try {
+    final shared = container.read(sharedOverAccountSettingsProvider);
+    if (shared.getString('garmin-enabled') != '1') return;
+    final tt =
+        await (container.read(timetableParserProvider) as dynamic).getHome()
+            as TimeTable?;
+    SubstitutionPlan? sp;
+    try {
+      sp =
+          await (container.read(substitutionsParserProvider) as dynamic)
+                  .getHome()
+              as SubstitutionPlan?;
+    } catch (_) {}
+    await _sendData(tt, sp);
+  } catch (_) {}
+}
+
+Future<String?> _sendData(TimeTable? tt, SubstitutionPlan? sp) async {
+  try {
     final plan = tt == null ? null : (tt.planForOwn ?? tt.planForAll);
     if (plan == null || plan.isEmpty) {
       return 'Öffne zuerst einmal den Stundenplan in der App, damit Daten da sind.';
@@ -64,11 +103,6 @@ Future<String?> sendToGarmin(WidgetRef ref) async {
 
     final subList = <Map<String, dynamic>>[];
     try {
-      final sp =
-          (ref.read(substitutionsParserProvider) as dynamic)
-                  .latestResponse
-                  ?.content
-              as SubstitutionPlan?;
       if (sp != null) {
         final dd = DateFormat('dd.MM.yyyy').format(target);
         final iso = DateFormat('yyyy-MM-dd').format(target);
@@ -104,7 +138,6 @@ Future<String?> sendToGarmin(WidgetRef ref) async {
           'Ist sie installiert und die Uhr verbunden?';
     }
     await garmin.sendMessage({'lessons': lessonList, 'subs': subList});
-    ref.read(sharedOverAccountSettingsProvider).setString('garmin-enabled', '1');
     return null;
   } catch (e) {
     return 'Senden an die Garmin-Uhr ist fehlgeschlagen.';

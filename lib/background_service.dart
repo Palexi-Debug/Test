@@ -11,6 +11,7 @@ import 'package:lanis/applets/definitions.dart';
 import 'package:lanis/bridge/lanis_bootstrap.dart';
 import 'package:lanis/bridge/legacy_storage_cleanup.dart';
 import 'package:lanis/l10n/account_type_ui.dart';
+import 'package:lanis/utils/garmin_sync.dart';
 import 'package:lanis/utils/logger.dart';
 import 'package:lanis/utils/privacy_policy.dart';
 
@@ -225,6 +226,19 @@ Future<void> callbackDispatcher() async {
               multiAccount: accounts.length > 1,
             ),
           );
+        }
+        // Garmin-Uhr im Hintergrund abgleichen (nur wenn aktiviert).
+        if (container
+                .read(sharedOverAccountSettingsProvider)
+                .getString('garmin-enabled') ==
+            '1') {
+          if (!authenticated) {
+            await container
+                .read(sessionProvider.notifier)
+                .authenticate(withoutData: true);
+            authenticated = true;
+          }
+          await sendToGarminHeadless(container);
         }
         if (authenticated) {
           await container.read(sessionProvider.notifier).deAuthenticate();
