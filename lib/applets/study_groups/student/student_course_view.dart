@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:intl/intl.dart';
+import 'package:lanis/applets/substitutions/teacher_lookup.dart';
 import 'package:lanis/utils/safe_launch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -138,6 +139,27 @@ class TeacherChip extends StatefulWidget {
 }
 
 class _TeacherChipState extends State<TeacherChip> {
+  String? _resolvedName;
+
+  @override
+  void initState() {
+    super.initState();
+    final t = widget.teacher;
+    if (t.lastName.isEmpty && t.krz.isNotEmpty) {
+      teacherFullName(context, t.krz).then((n) {
+        if (mounted && n != null) setState(() => _resolvedName = n);
+      });
+    }
+  }
+
+  String get _label {
+    final t = widget.teacher;
+    final name = t.lastName.isNotEmpty
+        ? (t.firstName.isEmpty ? t.lastName : '${t.lastName}, ${t.firstName}')
+        : (_resolvedName ?? '');
+    return name.isEmpty ? t.krz : '$name (${t.krz})';
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -162,9 +184,7 @@ class _TeacherChipState extends State<TeacherChip> {
           spacing: 4.0,
           children: [
             Icon(Icons.person, size: 16),
-            Text(
-              "${widget.teacher.lastName}, ${widget.teacher.firstName} (${widget.teacher.krz})",
-            ),
+            Flexible(child: Text(_label, overflow: TextOverflow.ellipsis)),
             if (widget.teacher.email != null)
               Icon(
                 Icons.email,

@@ -94,36 +94,48 @@ class StudyGroupsStudentParser extends AppletParser<StudentStudyGroups> {
         final teacherElement = elementInRow('Lehrkraft');
         if (teacherElement != null) {
           for (final Element teacherButton in teacherElement.children) {
-            String teacherName = teacherButton
-                    .querySelector('ul.dropdown-menu > li > a > i.fa')
-                    ?.parent
+            final krz = teacherButton
+                    .querySelector('button.btn.btn-primary.dropdown-toggle')
                     ?.text
                     .trim() ??
-                "";
-            List<String> teacherNameSplit = teacherName.split(',');
+                '';
+            // Leere/versteckte Elemente ohne Kürzel ergeben sonst ", ()".
+            if (krz.isEmpty) continue;
+
+            String name = '';
+            String? mail;
+            for (final a in teacherButton.querySelectorAll(
+              'ul.dropdown-menu a',
+            )) {
+              final t = a.text.trim();
+              if (t.isEmpty) continue;
+              final isMail =
+                  t.contains('[AT]') || t.contains('@') || t.contains('[DOT]');
+              if (isMail) {
+                mail = t
+                    .replaceAll(RegExp(r'\s*\[AT\]\s*'), '@')
+                    .replaceAll(RegExp(r'\s*\[DOT\]\s*'), '.')
+                    .replaceAll(' ', '');
+              } else if (name.isEmpty) {
+                name = t;
+              }
+            }
+            // Name auch aus Überschrift/title versuchen
+            if (name.isEmpty) {
+              name = teacherButton
+                      .querySelector('ul.dropdown-menu .dropdown-header')
+                      ?.text
+                      .trim() ??
+                  teacherButton.attributes['title']?.trim() ??
+                  '';
+            }
+            final nameSplit = name.split(',');
             teachers.add(
               StudentStudyGroupTeacher(
-                firstName: teacherNameSplit.length > 1
-                    ? teacherNameSplit[1].trim()
-                    : "",
-                lastName: teacherNameSplit.isNotEmpty
-                    ? teacherNameSplit[0].trim()
-                    : "",
-                krz:
-                    teacherButton
-                        .querySelector(
-                          'button.btn.btn-primary.dropdown-toggle',
-                        )
-                        ?.text
-                        .trim() ??
-                    "",
-                email: teacherButton
-                    .querySelector(
-                      'ul.dropdown-menu > li > a > i.fa',
-                    )
-                    ?.parent
-                    ?.text
-                    .trim(),
+                firstName: nameSplit.length > 1 ? nameSplit[1].trim() : '',
+                lastName: nameSplit.isNotEmpty ? nameSplit[0].trim() : '',
+                krz: krz,
+                email: mail,
               ),
             );
           }
