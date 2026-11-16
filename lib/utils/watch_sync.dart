@@ -79,6 +79,8 @@ Future<String?> sendLoginToWatch(WidgetRef ref) async {
     final ack = watch.messageStream
         .firstWhere((m) => m['kind'] == 'ack')
         .timeout(const Duration(seconds: 40));
+    // Verhindert einen unbehandelten Fehler, falls vor dem await etwas scheitert.
+    ack.ignore();
     await watch.updateApplicationContext(payload);
     if (await watch.isReachable) {
       await watch.sendMessage(payload);

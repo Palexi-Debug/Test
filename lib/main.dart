@@ -48,8 +48,11 @@ Future<void> _startApp() async {
     enableTransparentNavigationBar();
 
     try {
-      await setupBackgroundService();
-      await initializeNotifications();
+      // Auf der Uhr kein Hintergrunddienst/Benachrichtigungen (spart Akku).
+      if (!WearMode.enabled) {
+        await setupBackgroundService();
+        await initializeNotifications();
+      }
     } catch (e, stack) {
       logger.e('Failed to initialize background service and notifications');
       logger.e(e, stackTrace: stack);

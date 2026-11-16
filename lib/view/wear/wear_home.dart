@@ -187,19 +187,39 @@ class _WearTimetablePage extends ConsumerStatefulWidget {
   ConsumerState<_WearTimetablePage> createState() => _WearTimetablePageState();
 }
 
-class _WearTimetablePageState extends ConsumerState<_WearTimetablePage> {
+class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
+    with WidgetsBindingObserver {
   Timer? _timer;
 
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+  // Minutengenau reicht; im Hintergrund (Display aus) läuft kein Timer.
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted) setState(() {});
     });
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startTimer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) setState(() {});
+      _startTimer();
+    } else {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }

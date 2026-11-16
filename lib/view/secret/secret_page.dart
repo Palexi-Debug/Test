@@ -470,7 +470,7 @@ class _SecretGamePageState extends State<SecretGamePage>
   double get _radius => max(8.0, 18 * _s);
   double get _gravity => 1500 * _s;
   double get _flapVelocity => -520 * _s;
-  double get _speed => 190 * _s;
+  double get _speed => 135 * _s;
   double get _obstacleWidth => max(22.0, 64 * _s);
   double get _groundHeight => max(10.0, 24 * _s);
 
@@ -530,8 +530,11 @@ class _SecretGamePageState extends State<SecretGamePage>
         .toDouble();
     _last = elapsed;
     if (_size == Size.zero) return;
-    if (_started && !_dead) _step(dt);
-    setState(() {});
+    // Nur neu zeichnen, solange gespielt wird (spart Akku, v. a. auf der Uhr).
+    if (_started && !_dead) {
+      _step(dt);
+      setState(() {});
+    }
   }
 
   void _step(double dt) {
@@ -640,9 +643,12 @@ class _SecretGamePageState extends State<SecretGamePage>
                   ),
                 if (_dead)
                   Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: _gameOverCard(context),
+                    child: SizedBox(
+                      width: _size.width * 0.86,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: _gameOverCard(context),
+                      ),
                     ),
                   ),
               ],
@@ -654,22 +660,29 @@ class _SecretGamePageState extends State<SecretGamePage>
   }
 
   Widget _gameOverCard(BuildContext context) {
+    final compact = _size.height < 420 || _size.width < 300;
     return Card(
-      margin: const EdgeInsets.all(24),
+      margin: EdgeInsets.all(compact ? 4 : 24),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(compact ? 10 : 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Aus die Maus!', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
+            Text(
+              'Aus die Maus!',
+              style: compact
+                  ? Theme.of(context).textTheme.titleMedium
+                  : Theme.of(context).textTheme.titleLarge,
+            ),
+            SizedBox(height: compact ? 4 : 8),
             Text('Punkte: $_score · Rekord: $_best'),
-            const SizedBox(height: 16),
+            SizedBox(height: compact ? 6 : 16),
             FilledButton(
               onPressed: () => setState(_reset),
               child: const Text('Nochmal'),
             ),
-            TextButton(
+            if (!compact)
+              TextButton(
               onPressed: () => Navigator.of(
                 context,
               ).push(MaterialPageRoute<void>(builder: (_) => const SecretLabPage())),
