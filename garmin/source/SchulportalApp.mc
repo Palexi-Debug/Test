@@ -13,6 +13,7 @@ class SchulportalApp extends Application.AppBase {
     }
 
     function onStart(state as Dictionary?) as Void {
+        DataStore.load();
         Communications.registerForPhoneAppMessages(method(:onPhoneMessage));
     }
 
