@@ -186,11 +186,15 @@ class MainView extends WatchUi.View {
         dc.drawText(w / 2, y, f, status, Graphics.TEXT_JUSTIFY_CENTER);
         y += Graphics.getFontHeight(f) + 16;
 
+        dc.setColor(0x999999, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(w / 2, y, Graphics.FONT_XTINY, "Nachrichten: " + DataStore.msgCount, Graphics.TEXT_JUSTIFY_CENTER);
+        y += Graphics.getFontHeight(Graphics.FONT_XTINY) + 8;
         if (!DataStore.live) {
-            dc.setColor(0x999999, Graphics.COLOR_TRANSPARENT);
             dc.drawText(w / 2, y, Graphics.FONT_XTINY, "Handy-App: Einstellungen", Graphics.TEXT_JUSTIFY_CENTER);
             y += Graphics.getFontHeight(Graphics.FONT_XTINY) + 2;
             dc.drawText(w / 2, y, Graphics.FONT_XTINY, "> An Garmin-Uhr senden", Graphics.TEXT_JUSTIFY_CENTER);
+            y += Graphics.getFontHeight(Graphics.FONT_XTINY) + 2;
+            dc.drawText(w / 2, y, Graphics.FONT_XTINY, "(App hier offen lassen)", Graphics.TEXT_JUSTIFY_CENTER);
         }
     }
 

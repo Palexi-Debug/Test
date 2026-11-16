@@ -4,10 +4,11 @@ import Toybox.System;
 // Aktuelle Daten. s/e = Start/Ende in Minuten seit 0 Uhr.
 module DataStore {
     // Muss zur version in manifest.xml passen.
-    const VERSION = "0.1.1";
+    const VERSION = "0.1.2";
 
     var live = false;
     var syncMin = -1;
+    var msgCount = 0;
 
     var lessons = [
         {"s" => 480, "e" => 525, "n" => "Mathematik", "r" => "R 214"},
@@ -24,6 +25,7 @@ module DataStore {
     ];
 
     function update(d as Dictionary) as Void {
+        msgCount += 1;
         var t = System.getClockTime();
         syncMin = t.hour * 60 + t.min;
         var l = d["lessons"];
