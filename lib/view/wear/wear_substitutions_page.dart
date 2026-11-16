@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lanis/applets/substitutions/definition.dart';
+import 'package:lanis/applets/substitutions/teacher_lookup.dart';
 import 'package:lanis/applets/substitutions/substitutions_view.dart'
     show formatDate;
 import 'package:lanis/widgets/combined_applet_builder.dart';
@@ -112,7 +113,7 @@ class WearSubstitutionsPage extends ConsumerWidget {
     final hinweis = _t(s.hinweis);
     final details = [
       if (raum.isNotEmpty) 'Raum $raum',
-      if (vertreter.isNotEmpty) 'Vertr. $vertreter',
+      if (vertreter.isNotEmpty) 'Vertr. $vertreter 👤',
     ].join(' · ');
     final titleText = [
       if (stunde.isNotEmpty) 'Std $stunde',
@@ -122,7 +123,13 @@ class WearSubstitutionsPage extends ConsumerWidget {
     return Card(
       color: const Color(0xFF1B1D2E),
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // Tippen zeigt den vollen Namen zum Lehrerkürzel (Vertretung).
+        onTap: vertreter.isEmpty
+            ? null
+            : () => showTeacherNameDialog(context, vertreter),
+        child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,6 +158,7 @@ class WearSubstitutionsPage extends ConsumerWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }

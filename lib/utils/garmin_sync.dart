@@ -135,12 +135,14 @@ Future<String?> _sendData(TimeTable? tt, SubstitutionPlan? sp) async {
     }
     if (!await garmin.isReachable) {
       return 'Die Schulportal-App ist auf der Garmin-Uhr nicht erreichbar. '
-          'Ist sie installiert und die Uhr verbunden?';
+          'Uhr per Bluetooth in Garmin Connect verbunden? Schulportal-App auf '
+          'der Uhr öffnen und offen lassen, dann erneut senden. Auf der Uhr '
+          'muss die neueste Version (Seite "Info") installiert sein.';
     }
     await garmin.sendMessage({'lessons': lessonList, 'subs': subList});
     return null;
   } catch (e) {
-    return 'Senden an die Garmin-Uhr ist fehlgeschlagen.';
+    return 'Senden an die Garmin-Uhr ist fehlgeschlagen: $e';
   }
 }
 

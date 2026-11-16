@@ -464,12 +464,15 @@ class _SecretGamePageState extends State<SecretGamePage>
     with SingleTickerProviderStateMixin {
   static int _best = 0;
 
-  static const double _radius = 18;
-  static const double _gravity = 1500;
-  static const double _flapVelocity = -520;
-  static const double _speed = 190;
-  static const double _obstacleWidth = 64;
-  static const double _groundHeight = 24;
+  // Alles skaliert mit der Bildschirmhöhe (Referenz: Handy mit 800 dp),
+  // damit das Spiel auf Uhr und Tablet genauso spielbar ist.
+  double get _s => (_size.height / 800).clamp(0.3, 2.2).toDouble();
+  double get _radius => max(8.0, 18 * _s);
+  double get _gravity => 1500 * _s;
+  double get _flapVelocity => -520 * _s;
+  double get _speed => 190 * _s;
+  double get _obstacleWidth => max(22.0, 64 * _s);
+  double get _groundHeight => max(10.0, 24 * _s);
 
   late final Ticker _ticker;
   Duration _last = Duration.zero;
@@ -483,7 +486,7 @@ class _SecretGamePageState extends State<SecretGamePage>
   bool _started = false;
   bool _dead = false;
 
-  double get _gap => max(170.0, _size.height * 0.26);
+  double get _gap => max(170.0 * _s, _size.height * 0.26);
   double get _playerX => _size.width * 0.28;
 
   @override
@@ -539,8 +542,8 @@ class _SecretGamePageState extends State<SecretGamePage>
     }
     _obstacles.removeWhere((o) => o.x + _obstacleWidth < -10);
 
-    if (_obstacles.isEmpty || _obstacles.last.x < _size.width - 260) {
-      const margin = 70.0;
+    if (_obstacles.isEmpty || _obstacles.last.x < _size.width - max(110.0, 260 * _s)) {
+      final margin = max(24.0, 70 * _s);
       final gap = _gap;
       final maxTop = _size.height - _groundHeight - margin - gap;
       final top = margin + _random.nextDouble() * max(1.0, maxTop - margin);
@@ -607,16 +610,16 @@ class _SecretGamePageState extends State<SecretGamePage>
                   ),
                 ),
                 Positioned(
-                  top: 56,
+                  top: max(28.0, 56 * _s),
                   left: 0,
                   right: 0,
                   child: IgnorePointer(
                     child: Center(
                       child: Text(
                         '$_score',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 56,
+                          fontSize: (56 * _s).clamp(26.0, 80.0).toDouble(),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -624,15 +627,24 @@ class _SecretGamePageState extends State<SecretGamePage>
                   ),
                 ),
                 if (!_started && !_dead)
-                  const IgnorePointer(
+                  IgnorePointer(
                     child: Center(
                       child: Text(
                         'Tippen zum Fliegen',
-                        style: TextStyle(color: Colors.white70, fontSize: 20),
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: (20 * _s).clamp(11.0, 32.0).toDouble(),
+                        ),
                       ),
                     ),
                   ),
-                if (_dead) Center(child: _gameOverCard(context)),
+                if (_dead)
+                  Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _gameOverCard(context),
+                    ),
+                  ),
               ],
             ),
           );
@@ -698,7 +710,7 @@ class _GamePainter extends CustomPainter {
     double height, {
     required bool tipDown,
   }) {
-    const tipHeight = 34.0;
+    final tipHeight = 34.0 * (obstacleWidth / 64).clamp(0.4, 1.6);
     if (height <= tipHeight) return;
     final body = Paint()..color = const Color(0xFFFFC107);
     final stripe = Paint()..color = const Color(0xFFFFA000);
@@ -795,7 +807,7 @@ class _GamePainter extends CustomPainter {
 
     canvas.save();
     canvas.translate(playerX, y);
-    canvas.rotate((vy / 900).clamp(-0.5, 0.7).toDouble());
+    canvas.rotate((vy / (900 * (size.height / 800).clamp(0.3, 2.2))).clamp(-0.5, 0.7).toDouble());
     final book = RRect.fromRectAndRadius(
       Rect.fromCenter(
         center: Offset.zero,

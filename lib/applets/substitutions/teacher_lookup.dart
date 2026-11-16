@@ -46,6 +46,7 @@ Future<void> showTeacherNameDialog(BuildContext context, String raw) {
   return showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
+      scrollable: true,
       icon: const Icon(Icons.person_search_rounded),
       title: Text(kuerzel),
       content: FutureBuilder<List<ReceiverEntry>>(
