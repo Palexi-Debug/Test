@@ -8,6 +8,7 @@ import 'package:lanis/startup.dart';
 import 'package:lanis/features/auth/auth_controller.dart';
 import 'package:lanis/utils/auth_redirect.dart';
 import 'package:lanis/utils/deep_link.dart';
+import 'package:lanis/utils/look.dart';
 import 'package:lanis/utils/responsive.dart';
 import 'package:lanis/view/account_switcher/account_switcher.dart';
 import 'package:lanis/utils/privacy_policy.dart';
@@ -23,6 +24,29 @@ import 'package:lanis/view/settings/settings_routes.dart';
 import 'package:lanis/widgets/applet_home_shell.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
+/// Weiches Überblenden (statt hartem Schnitt) beim Wechsel Startbild → App.
+CustomTransitionPage<void> _softPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: AppLook.dur(520),
+    reverseTransitionDuration: AppLook.dur(300),
+    transitionsBuilder: (context, animation, secondary, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeInOutCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
 
 Widget _homeAppletBody(AppletDefinition def) {
   return Consumer(
@@ -203,11 +227,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => const DashboardPage(),
+        pageBuilder: (context, state) =>
+            _softPage(state, const DashboardPage()),
       ),
       GoRoute(
         path: '/wear',
-        builder: (context, state) => const WearHome(),
+        pageBuilder: (context, state) => _softPage(state, const WearHome()),
       ),
       GoRoute(
         path: SettingsDeepLinks.deepLinkError,

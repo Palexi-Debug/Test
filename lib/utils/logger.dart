@@ -12,58 +12,63 @@ class Logger {
     : _maxHistorySize = maxHistorySize;
 
   void _addToHistory(String message) {
-    _history.add(message);
+    if (_maxHistorySize <= 0) return;
+    _history.add('${DateFormat('HH:mm:ss').format(DateTime.now())} $message');
     if (_history.length > _maxHistorySize) {
       _history.removeAt(0);
     }
   }
 
   void i(dynamic message) {
+    final msg0 = message.toString();
+    _addToHistory('[INFO] $msg0');
     if (kDebugMode) {
-      final msg = message.toString();
+      final msg = msg0;
       ColoredLogger.info(
         msg,
         prefix: '${_dateFormat.format(DateTime.now())}    [INFO] $_name: ',
       );
-      _addToHistory('[INFO] $msg');
     }
   }
 
   void e(dynamic message, {StackTrace? stackTrace}) {
+    final msg0 = message.toString();
+    _addToHistory('[ERROR] $msg0');
+    if (stackTrace != null) _addToHistory('[STACKTRACE] $stackTrace');
     if (kDebugMode) {
-      final msg = message.toString();
+      final msg = msg0;
       ColoredLogger.error(
         msg,
         prefix: '${_dateFormat.format(DateTime.now())}   [ERROR] $_name: ',
       );
-      _addToHistory('[ERROR] $msg');
       if (stackTrace != null) {
         debugPrintStack(stackTrace: stackTrace, label: _name);
-        _addToHistory('[STACKTRACE] $stackTrace');
       }
     }
   }
 
   void w(dynamic message) {
+    final msg0 = message.toString();
+    _addToHistory('[WARNING] $msg0');
     if (kDebugMode) {
-      final msg = message.toString();
+      final msg = msg0;
       ColoredLogger.warning(
         msg,
         prefix: '${_dateFormat.format(DateTime.now())} [WARNING] $_name: ',
       );
-      _addToHistory('[WARNING] $msg');
     }
   }
 
   void d(dynamic message) {
+    final msg0 = message.toString();
+    _addToHistory('[DEBUG] $msg0');
     if (kDebugMode) {
-      final msg = message.toString();
+      final msg = msg0;
       ColoredLogger.colorize(
         msg,
         prefix: '${_dateFormat.format(DateTime.now())}   [DEBUG] $_name: ',
         styles: [Ansi.bold, Ansi.brightBlue],
       );
-      _addToHistory('[DEBUG] $msg');
     }
   }
 
@@ -91,5 +96,5 @@ class MemoryLogger {
   }
 }
 
-Logger logger = Logger('Lanis', maxHistorySize: 100);
-Logger backgroundLogger = Logger('Lanis BG', maxHistorySize: 0);
+Logger logger = Logger('Lanis', maxHistorySize: 400);
+Logger backgroundLogger = Logger('Lanis BG', maxHistorySize: 200);

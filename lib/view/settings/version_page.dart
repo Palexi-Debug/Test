@@ -26,6 +26,33 @@ class _UpdateDialog extends StatefulWidget {
 class _UpdateDialogState extends State<_UpdateDialog> {
   double? _progress;
   String? _error;
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Download läuft ggf. schon im Hintergrund; Fortschritt anzeigen.
+    prefetchUpdate(widget.info);
+    isUpdateDownloaded(widget.info).then((v) {
+      if (mounted) setState(() => _ready = v);
+    });
+    updateProgressOf(widget.info.build).addListener(_onProgress);
+  }
+
+  void _onProgress() {
+    final v = updateProgressOf(widget.info.build).value;
+    if (!mounted) return;
+    setState(() {
+      _ready = v >= 1;
+      if (_progress != null) _progress = v;
+    });
+  }
+
+  @override
+  void dispose() {
+    updateProgressOf(widget.info.build).removeListener(_onProgress);
+    super.dispose();
+  }
 
   Future<void> _install() async {
     setState(() {
@@ -57,6 +84,14 @@ class _UpdateDialogState extends State<_UpdateDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Aktuell installiert: Build $currentBuildId'),
+          if (_ready)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Bereits heruntergeladen – bereit zur Installation.',
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              ),
+            ),
           if (widget.info.notes.trim().isNotEmpty) ...[
             const SizedBox(height: 12),
             Text('Was ist neu', style: Theme.of(context).textTheme.labelLarge),

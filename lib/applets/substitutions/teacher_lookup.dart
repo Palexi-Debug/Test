@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liblanis/liblanis.dart';
+import 'package:lanis/view/wear/wear_mode.dart';
 
 /// Filtert Suchtreffer auf das exakte Kürzel (steht am Ende in Klammern,
 /// z. B. "Rebuschat, Rainer Gustav (RT)"). Die Suche trifft sonst jeden Namen,
@@ -37,55 +38,107 @@ Future<String?> teacherFullName(BuildContext context, String kuerzel) async {
 
 /// Zeigt zu einem Lehrerkürzel den vollen Namen. Die Namen kommen aus der
 /// Empfängersuche des Nachrichten-Moduls (gleiche Suche wie beim Tippen eines
-/// Kürzels in "Neue Nachricht").
+/// Kürzels in "Neue Nachricht"). Auf der Uhr gibt es eine eigene, kompakte
+/// Ansicht für runde, kleine Displays.
 Future<void> showTeacherNameDialog(BuildContext context, String raw) {
   final kuerzel = raw.replaceAll(RegExp(r'<[^>]*>'), '').trim();
   final parser = ProviderScope.containerOf(
     context,
   ).read(conversationsParserProvider);
+  final future = parser.searchTeacher(kuerzel);
+  final wear = WearMode.enabled;
+
+  Widget body(BuildContext ctx) => FutureBuilder<List<ReceiverEntry>>(
+    future: future,
+    builder: (context, snap) {
+      final style = wear
+          ? const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)
+          : Theme.of(context).textTheme.titleMedium;
+      final align = wear ? TextAlign.center : TextAlign.start;
+      if (snap.connectionState != ConnectionState.done) {
+        return SizedBox(
+          height: wear ? 36 : 56,
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 3)),
+        );
+      }
+      if (snap.hasError) {
+        return Text(
+          'Name konnte nicht geladen werden.',
+          textAlign: align,
+        );
+      }
+      final list = exactKuerzelMatches(
+        (snap.data ?? const <ReceiverEntry>[])
+            .where((e) => e.isTeacher)
+            .toList(),
+        kuerzel,
+      );
+      if (list.isEmpty) {
+        return Text('Kein Lehrer zu diesem Kürzel gefunden.', textAlign: align);
+      }
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment:
+            wear ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        children: [
+          for (final e in list)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: wear ? 2 : 4),
+              child: Text(e.name, style: style, textAlign: align),
+            ),
+        ],
+      );
+    },
+  );
+
+  if (wear) {
+    // Uhr: schwarzer, randloser Dialog mit großer Tipp-Fläche zum Schließen.
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: InkWell(
+          onTap: () => Navigator.pop(ctx),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(34, 28, 34, 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.person_search_rounded, size: 22),
+                    const SizedBox(height: 4),
+                    Text(
+                      kuerzel,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    body(ctx),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Tippen zum Schließen',
+                      style: TextStyle(fontSize: 11, color: Colors.white54),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   return showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
       scrollable: true,
       icon: const Icon(Icons.person_search_rounded),
       title: Text(kuerzel),
-      content: FutureBuilder<List<ReceiverEntry>>(
-        future: parser.searchTeacher(kuerzel),
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const SizedBox(
-              height: 56,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (snap.hasError) {
-            return const Text('Name konnte nicht geladen werden.');
-          }
-          final list = exactKuerzelMatches(
-            (snap.data ?? const <ReceiverEntry>[])
-                .where((e) => e.isTeacher)
-                .toList(),
-            kuerzel,
-          );
-          if (list.isEmpty) {
-            return const Text('Kein Lehrer zu diesem Kürzel gefunden.');
-          }
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final e in list)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    e.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
+      content: body(ctx),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),

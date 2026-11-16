@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:lanis/utils/logger.dart';
 
 /// Repo, in dem die Builds als GitHub-Releases veröffentlicht werden.
 const updateRepo = 'Palexi-Debug/Test';
@@ -69,37 +71,115 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
   }
 }
 
-/// Lädt die APK herunter und startet den Android-Installer.
-/// Gibt eine Fehlermeldung zurück oder null bei Erfolg.
+final Map<int, Future<File?>> _downloadJobs = {};
+final Map<int, ValueNotifier<double>> _downloadProgress = {};
+
+/// Fortschritt (0–1) des Downloads für ein Build.
+ValueNotifier<double> updateProgressOf(int build) =>
+    _downloadProgress.putIfAbsent(build, () => ValueNotifier<double>(0));
+
+Future<File> _apkFile(UpdateInfo info) async {
+  final dir = await getTemporaryDirectory();
+  return File('${dir.path}/schulportal-update-${info.build}.apk');
+}
+
+/// Ist die APK schon vollständig heruntergeladen?
+Future<bool> isUpdateDownloaded(UpdateInfo info) async {
+  try {
+    final f = await _apkFile(info);
+    if (!await f.exists()) return false;
+    final len = await f.length();
+    return info.size <= 0 ? len > 0 : len == info.size;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Startet den Download im Hintergrund (oder hängt sich an einen laufenden
+/// an). Eine fertige Datei wird wiederverwendet. Gibt null bei Fehlschlag.
+Future<File?> prefetchUpdate(UpdateInfo info) {
+  return _downloadJobs.putIfAbsent(info.build, () async {
+    logger.i('Update: Download Build ${info.build} gestartet');
+    final file = await _downloadApk(info);
+    logger.i(
+      file == null
+          ? 'Update: Download Build ${info.build} fehlgeschlagen'
+          : 'Update: Build ${info.build} heruntergeladen',
+    );
+    if (file == null) _downloadJobs.remove(info.build);
+    return file;
+  });
+}
+
+Future<File?> _downloadApk(UpdateInfo info) async {
+  final progress = updateProgressOf(info.build);
+  try {
+    final file = await _apkFile(info);
+    if (await isUpdateDownloaded(info)) {
+      progress.value = 1;
+      return file;
+    }
+    // Alte Update-Dateien anderer Builds aufräumen.
+    try {
+      await for (final e in file.parent.list()) {
+        final name = e.path.split('/').last;
+        if (e is File &&
+            name.startsWith('schulportal-update-') &&
+            e.path != file.path) {
+          await e.delete();
+        }
+      }
+    } catch (_) {}
+    // In eine .part-Datei laden, damit nie eine halbe APK als fertig gilt.
+    final part = File('${file.path}.part');
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (await part.exists()) await part.delete();
+        progress.value = 0;
+        await Dio().download(
+          info.apkUrl,
+          part.path,
+          onReceiveProgress: (received, total) {
+            if (total > 0) progress.value = received / total;
+          },
+        );
+        final len = await part.length();
+        final ok = info.size <= 0 ? len > 0 : len == info.size;
+        if (ok) {
+          if (await file.exists()) await file.delete();
+          await part.rename(file.path);
+          progress.value = 1;
+          return file;
+        }
+      } catch (_) {}
+    }
+    try {
+      if (await part.exists()) await part.delete();
+    } catch (_) {}
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Installiert das Update. Ist der Download schon (im Hintergrund) fertig,
+/// startet der Installer sofort. Gibt eine Fehlermeldung zurück oder null.
 Future<String?> downloadAndInstall(
   UpdateInfo info,
   void Function(double progress) onProgress,
 ) async {
+  final notifier = updateProgressOf(info.build);
+  void listener() => onProgress(notifier.value);
+  notifier.addListener(listener);
   try {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/schulportal-update-${info.build}.apk');
-    // Bis zu 3 Versuche; unvollständige Dateien werden verworfen.
-    var complete = false;
-    for (var attempt = 0; attempt < 3 && !complete; attempt++) {
-      try {
-        if (await file.exists()) await file.delete();
-        await Dio().download(
-          info.apkUrl,
-          file.path,
-          onReceiveProgress: (received, total) {
-            if (total > 0) onProgress(received / total);
-          },
-        );
-        final len = await file.length();
-        complete = info.size <= 0 ? len > 0 : len == info.size;
-      } catch (_) {
-        complete = false;
-      }
+    onProgress(notifier.value);
+    var file = await prefetchUpdate(info);
+    // Wurde die Datei inzwischen vom System gelöscht, neu laden.
+    if (file != null && !await file.exists()) {
+      _downloadJobs.remove(info.build);
+      file = await prefetchUpdate(info);
     }
-    if (!complete) {
-      try {
-        if (await file.exists()) await file.delete();
-      } catch (_) {}
+    if (file == null) {
       return 'Download unvollständig. Bitte mit stabiler Verbindung erneut versuchen.';
     }
     final result = await OpenFile.open(
@@ -112,5 +192,7 @@ Future<String?> downloadAndInstall(
     return null;
   } catch (e) {
     return 'Download fehlgeschlagen. Bist du online?';
+  } finally {
+    notifier.removeListener(listener);
   }
 }

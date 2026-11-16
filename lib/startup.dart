@@ -138,35 +138,7 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
         ),
       );
     }
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const AnimatedBookLogo(size: 150),
-          const SizedBox(height: 16),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 1200),
-            curve: Curves.easeOut,
-            builder: (context, v, child) => Opacity(opacity: v, child: child),
-            child: Text(
-              'Schulportal',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(
-            versionLabel(),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
+    return const _SplashIntro();
   }
 
   @override
@@ -290,6 +262,91 @@ class StartupAuthErrorContent extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// Weiche Einblendung des Startbilds: Logo wächst sanft ein, danach blenden
+/// Titel, Ladeanzeige und Version nacheinander auf.
+class _SplashIntro extends StatefulWidget {
+  const _SplashIntro();
+
+  @override
+  State<_SplashIntro> createState() => _SplashIntroState();
+}
+
+class _SplashIntroState extends State<_SplashIntro>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Animation<double> _step(double from, double to, [Curve curve = Curves.easeOutCubic]) =>
+      CurvedAnimation(parent: _c, curve: Interval(from, to, curve: curve));
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = _step(0.0, 0.45);
+    final title = _step(0.35, 0.75);
+    final rest = _step(0.6, 1.0);
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FadeTransition(
+            opacity: logo,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.85, end: 1).animate(logo),
+              child: const AnimatedBookLogo(size: 150),
+            ),
+          ),
+          const SizedBox(height: 16),
+          FadeTransition(
+            opacity: title,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.25),
+                end: Offset.zero,
+              ).animate(title),
+              child: Text(
+                'Schulportal',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          FadeTransition(
+            opacity: rest,
+            child: Column(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  versionLabel(),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

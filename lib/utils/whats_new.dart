@@ -51,6 +51,10 @@ void showUpdateInfoIfRequired(BuildContext context) async {
   if (_updateChecked) return;
   _updateChecked = true;
   final res = await checkForUpdate();
+  if (res.result == UpdateCheckResult.newer) {
+    // Download startet sofort im Hintergrund, noch bevor der Dialog erscheint.
+    prefetchUpdate(res.info!);
+  }
   if (res.result == UpdateCheckResult.newer && context.mounted) {
     await showUpdateDialog(context, res.info!);
   }

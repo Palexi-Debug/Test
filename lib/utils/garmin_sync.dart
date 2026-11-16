@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:watch_connectivity_garmin/watch_connectivity_garmin.dart';
+import 'package:lanis/utils/logger.dart';
 
 /// ID der Garmin-App (steht in garmin/manifest.xml auf dem Branch "garmin").
 const garminAppId = 'a310ed80-12b3-4086-9623-15db0f0699c2';
@@ -140,8 +141,10 @@ Future<String?> _sendData(TimeTable? tt, SubstitutionPlan? sp) async {
           'muss die neueste Version (Seite "Info") installiert sein.';
     }
     await garmin.sendMessage({'lessons': lessonList, 'subs': subList});
+    logger.i('Garmin: ${lessonList.length} Stunden, ${subList.length} Vertretungen gesendet');
     return null;
   } catch (e) {
+    logger.e('Garmin: Senden fehlgeschlagen: $e');
     return 'Senden an die Garmin-Uhr ist fehlgeschlagen: $e';
   }
 }

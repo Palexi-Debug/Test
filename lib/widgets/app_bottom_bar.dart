@@ -13,13 +13,14 @@ import 'package:lanis/utils/whats_new.dart';
 import 'package:lanis/view/server_status_page.dart';
 import 'package:lanis/view/tutorial/tutorial_page.dart';
 
-class _BarItem {
+/// Ein Eintrag der unteren Leiste (auch von der Vorschau in den Einstellungen genutzt).
+class BottomBarItem {
   final String key;
   final String label;
   final Widget icon;
   final Widget selectedIcon;
   final VoidCallback onTap;
-  const _BarItem(this.key, this.label, this.icon, this.selectedIcon, this.onTap);
+  const BottomBarItem(this.key, this.label, this.icon, this.selectedIcon, this.onTap);
 }
 
 DateTime _lastTap = DateTime.fromMillisecondsSinceEpoch(0);
@@ -55,12 +56,12 @@ class AppBottomBar extends ConsumerWidget {
       return null;
     }
 
-    final items = <_BarItem>[];
+    final items = <BottomBarItem>[];
     void addApplet(String seg) {
       final d = find(seg);
       if (d == null) return;
       items.add(
-        _BarItem(
+        BottomBarItem(
           seg,
           d.label(context),
           d.icon,
@@ -73,7 +74,7 @@ class AppBottomBar extends ConsumerWidget {
     addApplet('substitutions');
     addApplet('timetable');
     items.add(
-      _BarItem(
+      BottomBarItem(
         'dashboard',
         'Start',
         const Icon(Icons.home_outlined),
@@ -83,7 +84,7 @@ class AppBottomBar extends ConsumerWidget {
     );
     addApplet('conversations');
     items.add(
-      _BarItem(
+      BottomBarItem(
         'more',
         'Mehr',
         const Icon(Icons.apps_outlined),
@@ -128,7 +129,7 @@ class AppBottomBar extends ConsumerWidget {
       items[index].onTap();
     }
 
-    return _AnimatedBar(
+    return AnimatedBottomBar(
       items: items,
       activeIndex: activeIndex,
       showLabels: showLabels,
@@ -252,13 +253,13 @@ class AppBottomBar extends ConsumerWidget {
 
 /// Eigene, animierte untere Leiste: gleitende Markierung, hüpfende Symbole,
 /// weicher Wechsel zwischen Umriss- und gefülltem Symbol.
-class _AnimatedBar extends StatelessWidget {
-  final List<_BarItem> items;
+class AnimatedBottomBar extends StatelessWidget {
+  final List<BottomBarItem> items;
   final int activeIndex;
   final bool showLabels;
   final ValueChanged<int> onSelect;
 
-  const _AnimatedBar({
+  const AnimatedBottomBar({
     required this.items,
     required this.activeIndex,
     required this.showLabels,
@@ -330,7 +331,7 @@ class _AnimatedBar extends StatelessWidget {
 }
 
 class _BarButton extends StatelessWidget {
-  final _BarItem item;
+  final BottomBarItem item;
   final bool selected;
   final bool showLabel;
   final double top;

@@ -24,7 +24,7 @@ class _SecretBuildTapState extends State<SecretBuildTap> {
   void _onTap() {
     final now = DateTime.now();
     if (_last == null ||
-        now.difference(_last!) > const Duration(milliseconds: 1500)) {
+        now.difference(_last!) > const Duration(milliseconds: 2000)) {
       _taps = 0;
     }
     _last = now;
@@ -53,10 +53,15 @@ class _SecretBuildTapState extends State<SecretBuildTap> {
 
   @override
   Widget build(BuildContext context) {
+    // Mindestens 48x48 große, großzügige Tippfläche. onTapDown zählt sofort,
+    // auch wenn der Finger leicht wackelt (onTap würde dann abbrechen).
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _onTap,
-      child: widget.child,
+      onTapDown: (_) => _onTap(),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+        child: Center(widthFactor: 1, heightFactor: 1, child: widget.child),
+      ),
     );
   }
 }
@@ -559,14 +564,16 @@ class _SecretGamePageState extends State<SecretGamePage>
         _score++;
         HapticFeedback.lightImpact();
       }
+      // Nachsichtige Trefferfläche: etwas kleiner als das gezeichnete Buch.
+      final hit = _radius * 0.78;
       final overlapX =
-          _playerX + _radius > o.x && _playerX - _radius < o.x + _obstacleWidth;
-      if (overlapX &&
-          (_y - _radius < o.gapTop || _y + _radius > o.gapTop + _gap)) {
+          _playerX + hit > o.x + 2 && _playerX - hit < o.x + _obstacleWidth - 2;
+      if (overlapX && (_y - hit < o.gapTop || _y + hit > o.gapTop + _gap)) {
         _die();
       }
     }
-    if (_y + _radius > _size.height - _groundHeight || _y - _radius < 0) {
+    final hitR = _radius * 0.78;
+    if (_y + hitR > _size.height - _groundHeight || _y - hitR < 0) {
       _die();
     }
   }
@@ -582,9 +589,9 @@ class _SecretGamePageState extends State<SecretGamePage>
             _size = newSize;
             _reset();
           }
-          return GestureDetector(
+          return Listener(
             behavior: HitTestBehavior.opaque,
-            onTapDown: (_) => _flap(),
+            onPointerDown: (_) => _flap(),
             child: Stack(
               children: [
                 Positioned.fill(
@@ -607,7 +614,13 @@ class _SecretGamePageState extends State<SecretGamePage>
                   child: Align(
                     alignment: Alignment.topLeft,
                     child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white54),
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(14),
+                      constraints: const BoxConstraints(
+                        minWidth: 56,
+                        minHeight: 56,
+                      ),
+                      icon: const Icon(Icons.close, color: Colors.white70),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),

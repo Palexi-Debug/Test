@@ -8,6 +8,8 @@ import 'package:lanis/utils/theme_settings.dart';
 import 'package:lanis/view/settings/settings_page_builder.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:liblanis/liblanis.dart';
+import 'package:lanis/applets/definitions.dart';
+import 'package:lanis/widgets/app_bottom_bar.dart';
 
 class AppearanceSettings extends ConsumerSettingsColours {
   final bool showBackButton;
@@ -356,6 +358,70 @@ class _LookSectionState extends ConsumerState<_LookSection> {
     notifyThemeChanged(ref);
   }
 
+  /// Einstellungen der unteren Leiste direkt unter der Vorschau.
+  Widget _navControls(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final order = _order;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: const Text('Beschriftung der Leiste'),
+              value: _labels,
+              onChanged: (v) => _set('nav-labels', v ? '1' : '0'),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Text(
+                'Reihenfolge: Einträge halten und ziehen',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 56,
+              child: ReorderableListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                buildDefaultDragHandles: false,
+                onReorder: (from, to) {
+                  final list = [...order];
+                  if (to > from) to -= 1;
+                  list.insert(to, list.removeAt(from));
+                  _set('nav-order', list.join(','));
+                },
+                children: [
+                  for (var i = 0; i < order.length; i++)
+                    ReorderableDragStartListener(
+                      key: ValueKey(order[i]),
+                      index: i,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
+                        ),
+                        child: Chip(
+                          avatar: const Icon(Icons.drag_indicator_rounded, size: 18),
+                          label: Text(_navLabels[order[i]]!),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(themeSettingsProvider);
@@ -394,6 +460,7 @@ class _LookSectionState extends ConsumerState<_LookSection> {
             order: _order,
           ),
         ),
+        _navControls(context),
         if (_p.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -535,36 +602,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
             onSelectionChanged: (v) => _set('look-anim', v.first.toString()),
           ),
         ),
-        title('Untere Leiste'),
-        SwitchListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          title: const Text('Beschriftung anzeigen'),
-          value: _labels,
-          onChanged: (v) => _set('nav-labels', v ? '1' : '0'),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ReorderableListView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            buildDefaultDragHandles: true,
-            onReorder: (from, to) {
-              final list = [..._order];
-              if (to > from) to -= 1;
-              list.insert(to, list.removeAt(from));
-              _set('nav-order', list.join(','));
-            },
-            children: [
-              for (final k in _order)
-                ListTile(
-                  key: ValueKey(k),
-                  dense: true,
-                  leading: const Icon(Icons.drag_indicator_rounded),
-                  title: Text(_navLabels[k]!),
-                ),
-            ],
-          ),
-        ),
         title('Stundenplan'),
         _LookSlider(
           label: 'Farbintensität',
@@ -616,18 +653,53 @@ class _Preview extends StatelessWidget {
     required this.order,
   });
 
-  static const _icons = {
-    'substitutions': Icons.sync_alt_rounded,
-    'timetable': Icons.calendar_view_week_rounded,
-    'dashboard': Icons.home_rounded,
-    'conversations': Icons.chat_bubble_rounded,
-  };
-  static const _names = {
-    'substitutions': 'Vertretung',
-    'timetable': 'Plan',
-    'dashboard': 'Start',
-    'conversations': 'Chat',
-  };
+  /// "Start" ist in der Vorschau markiert (wie auf Bild der echten Leiste).
+  int get _activeIndex {
+    final i = order.indexOf('dashboard');
+    return i < 0 ? 0 : i;
+  }
+
+  List<BottomBarItem> _barItems(BuildContext ctx) {
+    AppletDefinition? find(String seg) {
+      for (final d in [
+        ...AppDefinitions.homeApplets,
+        ...AppDefinitions.navigationApplets,
+      ]) {
+        if (d.pathSegment == seg) return d;
+      }
+      return null;
+    }
+
+    final out = <BottomBarItem>[];
+    for (final k in order) {
+      if (k == 'dashboard') {
+        out.add(
+          BottomBarItem(
+            'dashboard',
+            'Start',
+            const Icon(Icons.home_outlined),
+            const Icon(Icons.home_rounded),
+            () {},
+          ),
+        );
+        continue;
+      }
+      final d = find(k);
+      if (d != null) {
+        out.add(BottomBarItem(k, d.label(ctx), d.icon, d.selectedIcon, () {}));
+      }
+    }
+    out.add(
+      BottomBarItem(
+        'more',
+        'Mehr',
+        const Icon(Icons.apps_outlined),
+        const Icon(Icons.apps_rounded),
+        () {},
+      ),
+    );
+    return out;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -691,44 +763,15 @@ class _Preview extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Container(
-                    color: cs.surfaceContainer,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        for (var i = 0; i < order.length; i++)
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 26,
-                                  decoration: BoxDecoration(
-                                    color: i == 0
-                                        ? cs.secondaryContainer
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(13),
-                                  ),
-                                  child: Icon(
-                                    _icons[order[i]],
-                                    size: 18,
-                                    color: i == 0
-                                        ? cs.onSecondaryContainer
-                                        : cs.onSurfaceVariant,
-                                  ),
-                                ),
-                                if (labels)
-                                  Text(
-                                    _names[order[i]]!,
-                                    style: text.labelSmall,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
-                            ),
-                          ),
-                      ],
+                  // Genau die echte Leiste (gleiche Optik, Animation, Namen, Icons).
+                  MediaQuery.removePadding(
+                    context: ctx,
+                    removeBottom: true,
+                    child: AnimatedBottomBar(
+                      items: _barItems(ctx),
+                      activeIndex: _activeIndex,
+                      showLabels: labels,
+                      onSelect: (_) {},
                     ),
                   ),
                 ],

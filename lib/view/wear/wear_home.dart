@@ -54,8 +54,10 @@ class _WearHomeState extends ConsumerState<WearHome> {
       }
     }).catchError((_) {});
     checkForUpdate(wear: true).then((r) {
-      if (mounted && r.result == UpdateCheckResult.newer) {
-        setState(() => _update = r.info);
+      if (r.result == UpdateCheckResult.newer) {
+        // Im Hintergrund vorladen, damit "Installieren" sofort startet.
+        prefetchUpdate(r.info!);
+        if (mounted) setState(() => _update = r.info);
       }
     });
   }
@@ -475,6 +477,7 @@ class _WearUpdatePageState extends State<_WearUpdatePage> {
       switch (r.result) {
         case UpdateCheckResult.newer:
           _info = r.info;
+          prefetchUpdate(r.info!);
           _status = 'Build ${r.info!.build} verfügbar';
         case UpdateCheckResult.upToDate:
           _status = 'Aktuell';
