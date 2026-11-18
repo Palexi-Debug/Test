@@ -6,6 +6,7 @@ import 'package:liblanis/liblanis.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/utils/applet_settings.dart';
 import 'package:lanis/utils/watch_sync.dart';
+import 'package:lanis/view/wear/wear_mode.dart';
 import 'error_view.dart';
 
 typedef RefreshFunction = Future<void> Function();
@@ -184,7 +185,48 @@ class _CombinedAppletBuilderState<T>
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              if (snapshot.data?.contentStatus == ContentStatus.offline)
+              if (snapshot.data?.contentStatus == ContentStatus.offline &&
+                  WearMode.enabled)
+                // Uhr: kleiner Hinweis, passt auch auf runde Displays.
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 2),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.wifi_off_rounded,
+                            size: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Offline · ${snapshot.data?.fetchedAt.format('HH:mm')}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else if (snapshot.data?.contentStatus == ContentStatus.offline)
                 Container(
                   width: double.infinity,
                   color: Theme.of(context).colorScheme.errorContainer,

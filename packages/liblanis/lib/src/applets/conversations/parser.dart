@@ -380,12 +380,12 @@ class ConversationsParser extends AppletParser<List<OverviewEntry>> {
         'to': sender,
         'groupOnly': groupOnly,
         'privateAnswerOnly': privateAnswerOnly,
-        'message': _encodeNonAscii(message),
+        'message': message,
         'replyToMsg': headId,
       };
 
       String encrypted = ctx.session.cryptor.encryptString(
-        json.encode(replyData),
+        _jsonAscii(replyData),
       );
 
       final response = await ctx.session.dio.post(
@@ -448,8 +448,8 @@ class ConversationsParser extends AppletParser<List<OverviewEntry>> {
   ) async {
     try {
       final List<Map<String, String>> createData = [
-        {'name': 'subject', 'value': _encodeNonAscii(subject)},
-        {'name': 'text', 'value': _encodeNonAscii(text)},
+        {'name': 'subject', 'value': subject},
+        {'name': 'text', 'value': text},
       ];
 
       if (type != null) {
@@ -461,7 +461,7 @@ class ConversationsParser extends AppletParser<List<OverviewEntry>> {
       }
 
       String encrypted = ctx.session.cryptor.encryptString(
-        json.encode(createData),
+        _jsonAscii(createData),
       );
 
       final response = await ctx.session.dio.post(
@@ -707,17 +707,13 @@ class OverviewFiltering {
 }
 
 
-/// Der Server macht aus Umlauten und Sonderzeichen sonst Fragezeichen.
-/// Deshalb werden alle Zeichen über ASCII als HTML-Entities gesendet
-/// (beim Lesen werden sie per `unescape` wieder zurückgewandelt).
-String _encodeNonAscii(String input) {
-  final buffer = StringBuffer();
-  for (final rune in input.runes) {
-    if (rune > 127) {
-      buffer.write('&#$rune;');
-    } else {
-      buffer.writeCharCode(rune);
-    }
-  }
-  return buffer.toString();
+/// JSON mit reinem ASCII: Umlaute und Sonderzeichen werden als \uXXXX
+/// geschrieben. Der Server löst sie beim Dekodieren selbst auf, im Portal
+/// erscheint der echte Buchstabe (keine "&#228;"-Entities mehr, die dort
+/// wörtlich angezeigt wurden).
+String _jsonAscii(Object data) {
+  return json.encode(data).replaceAllMapped(
+    RegExp(r'[^\x00-\x7F]'),
+    (m) => '\\u${m[0]!.codeUnitAt(0).toRadixString(16).padLeft(4, '0')}',
+  );
 }

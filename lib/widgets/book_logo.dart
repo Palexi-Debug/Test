@@ -27,15 +27,24 @@ class BookLogo extends StatelessWidget {
   }
 }
 
+/// Hintergrund der Uhr-Ladeanzeigen: gleicher Verlauf wie das Logo.
+const LinearGradient kLogoGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFF4A5CD0), Color(0xFF1F2A7A)],
+);
+
 /// Das Buch öffnet sich beim Erscheinen.
 class AnimatedBookLogo extends StatefulWidget {
   final double size;
   final Duration delay;
+  final bool withBackground;
 
   const AnimatedBookLogo({
     super.key,
     this.size = 120,
     this.delay = Duration.zero,
+    this.withBackground = true,
   });
 
   @override
@@ -71,7 +80,11 @@ class _AnimatedBookLogoState extends State<AnimatedBookLogo>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _c,
-      builder: (context, _) => BookLogo(size: widget.size, progress: _c.value),
+      builder: (context, _) => BookLogo(
+        size: widget.size,
+        progress: _c.value,
+        withBackground: widget.withBackground,
+      ),
     );
   }
 }

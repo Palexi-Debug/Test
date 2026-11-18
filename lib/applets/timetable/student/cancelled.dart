@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:lanis/utils/look.dart';
+import 'package:lanis/utils/logger.dart';
 
 /// Zahlenbereich aus "3" oder "3 - 4" (Vertretungsplan) bzw. Stundenbezeichnung.
 List<int> _range(String? s) {
@@ -14,10 +15,23 @@ List<int> _range(String? s) {
   return [for (var i = a; i <= b; i++) i];
 }
 
-bool _isCancelText(String? art) {
-  final t = (art ?? '').toLowerCase();
-  return t.contains('entf') || t.contains('ausfall') || t.contains('freisetz');
+bool _isCancelText(String? text) {
+  final t = (text ?? '')
+      .toLowerCase()
+      .replaceAll('ä', 'ae')
+      .replaceAll('ö', 'oe')
+      .replaceAll('ü', 'ue');
+  return t.contains('entf') ||
+      t.contains('ausfall') ||
+      t.contains('freisetz') ||
+      t.contains('faellt aus') ||
+      t.contains('faellt ersatzlos') ||
+      t.contains('faellt weg') ||
+      t.contains('entfaellt') ||
+      t.contains('unterrichtsfrei');
 }
+
+final Set<String> _loggedCancel = {};
 
 /// Fällt [s] am Tag [date] laut Vertretungsplan aus?
 bool isLessonCancelled(
@@ -58,15 +72,28 @@ bool isLessonCancelled(
         continue;
       }
       for (final sub in d.substitutions) {
-        if (!_isCancelText(sub.art)) continue;
+        if (!_isCancelText(sub.art) &&
+            !_isCancelText(sub.hinweis) &&
+            !_isCancelText(sub.hinweis2)) {
+          continue;
+        }
         if (!_range(sub.stunde).any(lessonNums.contains)) continue;
         final f = (sub.fach_alt ?? sub.fach ?? '').toLowerCase().trim();
         if (f.isNotEmpty && name.isNotEmpty && !(name.contains(f) || f.contains(name))) {
           continue;
         }
+        final key = '${date.year}-${date.month}-${date.day}|${s.name}|${sub.stunde}';
+        if (_loggedCancel.add(key)) {
+          logger.i(
+            'Ausfall erkannt: ${s.name} am ${date.day}.${date.month}. '
+            '(Stunde ${sub.stunde}, art="${sub.art}", hinweis="${sub.hinweis}")',
+          );
+        }
         return true;
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    logger.e('Ausfall-Erkennung fehlgeschlagen: $e');
+  }
   return false;
 }

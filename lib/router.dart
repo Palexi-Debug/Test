@@ -26,6 +26,8 @@ import 'package:lanis/widgets/applet_home_shell.dart';
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// Weiches Überblenden (statt hartem Schnitt) beim Wechsel Startbild → App.
+bool _dashboardIntroDone = false;
+
 CustomTransitionPage<void> _softPage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
@@ -227,8 +229,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        pageBuilder: (context, state) =>
-            _softPage(state, const DashboardPage()),
+        pageBuilder: (context, state) {
+          // Weicher Übergang nur beim ersten Öffnen nach dem Start. Der
+          // Start-Knopf der unteren Leiste wechselt danach nahezu sofort.
+          if (_dashboardIntroDone) {
+            return CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: const DashboardPage(),
+              transitionDuration: const Duration(milliseconds: 120),
+              reverseTransitionDuration: const Duration(milliseconds: 120),
+              transitionsBuilder: (context, animation, secondary, child) =>
+                  FadeTransition(opacity: animation, child: child),
+            );
+          }
+          _dashboardIntroDone = true;
+          return _softPage(state, const DashboardPage());
+        },
       ),
       GoRoute(
         path: '/wear',

@@ -33,10 +33,46 @@ Future<String?> sendToGarmin(WidgetRef ref) async {
             as SubstitutionPlan?;
   } catch (_) {}
   final err = await _sendData(tt, sp);
+  final shared = ref.read(sharedOverAccountSettingsProvider);
   if (err == null) {
-    ref.read(sharedOverAccountSettingsProvider).setString('garmin-enabled', '1');
+    shared.setString('garmin-enabled', '1');
   }
+  recordGarminResult(shared, err);
   return err;
+}
+
+/// Merkt sich Zeit und Ergebnis des letzten Sendens (für die Sync-Seite).
+void recordGarminResult(dynamic shared, String? err) {
+  try {
+    shared.setString(
+      'garmin-last',
+      '${DateTime.now().toIso8601String()}|${err == null ? 'ok' : 'fehler'}',
+    );
+  } catch (_) {}
+}
+
+/// Prüft die Verbindung zur Garmin-App/Uhr, ohne Daten zu senden.
+Future<String> garminCheck() async {
+  try {
+    final garmin = WatchConnectivityGarmin();
+    await garmin.initialize(
+      const GarminInitializationOptions(
+        applicationId: garminAppId,
+        urlScheme: 'schulportal-garmin',
+      ),
+    );
+    if (!await garmin.isSupported) {
+      return 'Garmin Connect ist auf dem Handy nicht installiert.';
+    }
+    if (!await garmin.isReachable) {
+      return 'Garmin Connect ist da, aber die Schulportal-App auf der Uhr '
+          'antwortet nicht. Öffne sie auf der Uhr und prüfe die '
+          'Bluetooth-Verbindung in Garmin Connect.';
+    }
+    return 'Verbindung in Ordnung. Die Uhr ist erreichbar.';
+  } catch (e) {
+    return 'Prüfung fehlgeschlagen: $e';
+  }
 }
 
 /// Hintergrund-Variante (ohne Oberfläche): holt Stundenplan und Vertretungen
@@ -56,7 +92,8 @@ Future<void> sendToGarminHeadless(ProviderContainer container) async {
                   .getHome()
               as SubstitutionPlan?;
     } catch (_) {}
-    await _sendData(tt, sp);
+    final err = await _sendData(tt, sp);
+    recordGarminResult(shared, err);
   } catch (_) {}
 }
 

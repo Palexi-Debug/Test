@@ -11,12 +11,11 @@ import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/utils/responsive.dart';
 import 'package:lanis/utils/whats_new.dart';
-import 'package:lanis/utils/watch_sync.dart';
-import 'package:lanis/utils/garmin_sync.dart';
 import 'package:lanis/view/wear/wear_mode.dart';
 import 'package:lanis/view/settings/settings_page_builder.dart';
 import 'package:lanis/view/settings/start_page.dart';
 import 'package:lanis/view/settings/subsettings/cache.dart';
+import 'package:lanis/view/settings/subsettings/sync_settings.dart';
 import 'package:lanis/widgets/press_tile.dart';
 
 class SettingsGroup {
@@ -222,51 +221,14 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
           SettingsTile(
             icon: Icons.watch_rounded,
             show: () async => !WearMode.enabled,
-            title: (context) => 'An Uhr senden',
-            subtitle: (context) async => 'Login auf die Uhr übertragen',
-            screen: (context) async {
-              final messenger = ScaffoldMessenger.of(context);
-              final nav = Navigator.of(context, rootNavigator: true);
-              showDialog<void>(
-                context: context,
-                barrierDismissible: false,
-                builder: (_) => const AlertDialog(
-                  title: Text('Sende an Uhr …'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Öffne auf der Uhr die Schulportal-App '
-                        '(Seite "Mit Handy verbinden").',
-                      ),
-                      SizedBox(height: 16),
-                      CircularProgressIndicator(),
-                    ],
-                  ),
-                ),
-              );
-              final err = await sendLoginToWatch(ref);
-              nav.pop();
-              messenger.showSnackBar(
-                SnackBar(content: Text(err ?? 'Uhr ist angemeldet.')),
-              );
-            },
-          ),
-        ],
-      ),
-      SettingsGroup(
-        tiles: [
-          SettingsTile(
-            icon: Icons.watch_outlined,
-            show: () async => !WearMode.enabled,
-            title: (context) => 'An Garmin-Uhr senden',
+            title: (context) => 'Sync mit Uhren',
             subtitle: (context) async =>
-                'Stundenplan und Vertretungen (Venu Sq 2, Test)',
+                'Wear OS und Garmin: Login, Stundenplan, Vertretungen',
             screen: (context) async {
-              final messenger = ScaffoldMessenger.of(context);
-              final err = await sendToGarmin(ref);
-              messenger.showSnackBar(
-                SnackBar(content: Text(err ?? 'An die Garmin-Uhr gesendet.')),
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SyncSettingsPage(),
+                ),
               );
             },
           ),

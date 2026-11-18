@@ -399,10 +399,12 @@ class _BarButton extends StatelessWidget {
                     color: color,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(item.label, maxLines: 1, softWrap: false),
+                    ),
                   ),
                 ),
               ],

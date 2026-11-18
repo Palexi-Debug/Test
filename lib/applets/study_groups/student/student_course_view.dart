@@ -5,101 +5,196 @@ import 'package:lanis/applets/substitutions/teacher_lookup.dart';
 import 'package:lanis/utils/safe_launch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class StudentCourseView extends StatelessWidget {
+class StudentCourseView extends StatefulWidget {
   final List<StudentStudyGroup> studyGroup;
 
   const StudentCourseView({super.key, required this.studyGroup});
 
-  BorderRadius getRadius(final int index, final int length) {
-    if (length == 1) {
-      return BorderRadius.circular(12.0);
-    }
+  @override
+  State<StudentCourseView> createState() => _StudentCourseViewState();
+}
 
-    if (index == 0) {
-      return BorderRadius.vertical(top: Radius.circular(12.0));
-    } else if (index == 1 && length == 2) {
-      return BorderRadius.vertical(bottom: Radius.circular(12.0));
-    } else {
-      if (index == length - 1) {
-        return BorderRadius.vertical(bottom: Radius.circular(12.0));
+class _StudentCourseViewState extends State<StudentCourseView> {
+  String _query = '';
+  bool _onlyWithExams = false;
+
+  List<StudentStudyGroupBySemester> _groupBySemester() {
+    final q = _query.trim().toLowerCase();
+    final Map<String, List<StudentStudyGroup>> grouped = {};
+    for (final group in widget.studyGroup) {
+      if (_onlyWithExams && group.exams.isEmpty) continue;
+      if (q.isNotEmpty) {
+        final hay = [
+          group.courseName,
+          group.courseSysId,
+          for (final t in group.teachers) '${t.krz} ${t.firstName} ${t.lastName}',
+        ].join(' ').toLowerCase();
+        if (!hay.contains(q)) continue;
       }
-
-      return BorderRadius.zero;
-    }
-  }
-
-  List<StudentStudyGroupBySemester> groupBySemester() {
-    Map<String, List<StudentStudyGroup>> grouped = {};
-    for (var group in studyGroup) {
       grouped.putIfAbsent(group.semester, () => []).add(group);
     }
     return grouped.entries
         .map(
-          (entry) => StudentStudyGroupBySemester(
-            studyGroup: entry.value,
-            semester: entry.key,
-          ),
+          (e) => StudentStudyGroupBySemester(studyGroup: e.value, semester: e.key),
         )
         .toList();
   }
 
-  Widget studyGroupTile(BuildContext context, StudentStudyGroup studyGroup) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
+  /// "Arbeitslehre 09R2" -> ("Arbeitslehre", "09R2")
+  (String, String?) _splitName(String full) {
+    final m = RegExp(r'^(.*?)\s+(\d{1,2}[A-Za-z0-9]*)$').firstMatch(full.trim());
+    if (m == null) return (full.trim(), null);
+    return (m.group(1)!.trim(), m.group(2));
+  }
+
+  String _cleanId(String id) =>
+      id.trim().replaceAll(RegExp(r'\s*[-–]\s*$'), '').trim();
+
+  int _daysUntil(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return DateTime(d.year, d.month, d.day).difference(today).inDays;
+  }
+
+  String _daysLabel(int days) {
+    if (days < 0) return 'vorbei';
+    if (days == 0) return 'heute';
+    if (days == 1) return 'morgen';
+    return 'in $days Tagen';
+  }
+
+  Widget _examRow(
+    BuildContext context,
+    StudentStudyGroupExam e, {
+    required bool isNext,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final days = _daysUntil(e.date);
+    final past = days < 0;
+    final bg = isNext
+        ? scheme.tertiaryContainer
+        : scheme.surfaceContainerHighest;
+    final fg = isNext ? scheme.onTertiaryContainer : scheme.onSurfaceVariant;
+    return Opacity(
+      opacity: past ? 0.5 : 1,
+      child: Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Icon(
+              past ? Icons.check_circle_outline : Icons.event_rounded,
+              size: 18,
+              color: fg,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                e.type,
+                style: TextStyle(
+                  color: fg,
+                  fontWeight: isNext ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  studyGroup.courseName,
-                  style: Theme.of(context).textTheme.titleSmall,
+                  DateFormat('EEE, dd.MM.yyyy').format(e.date),
+                  style: TextStyle(color: fg, fontSize: 13),
                 ),
                 Text(
-                  studyGroup.courseSysId,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  _daysLabel(days),
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 11,
+                    fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
+                  ),
                 ),
               ],
             ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                alignment: WrapAlignment.start,
-                crossAxisAlignment: WrapCrossAlignment.start,
-                children: studyGroup.teachers
-                    .map(
-                      (teacher) => Padding(
-                        padding: const EdgeInsets.all(1.0),
-                        child: TeacherChip(teacher: teacher),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-            if (studyGroup.exams.isNotEmpty)
-              ...studyGroup.exams.asMap().entries.map((entry) {
-                final i = entry.key;
-                final e = entry.value;
-                return Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 1),
-                  decoration: BoxDecoration(
-                    borderRadius: getRadius(i, studyGroup.exams.length),
-                    color: i % 2 == 0
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.tertiaryContainer,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _courseCard(BuildContext context, StudentStudyGroup g) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final (name, cls) = _splitName(g.courseName);
+    final id = _cleanId(g.courseSysId);
+    final exams = [...g.exams]..sort((a, b) => a.date.compareTo(b.date));
+    StudentStudyGroupExam? next;
+    for (final e in exams) {
+      if (_daysUntil(e.date) >= 0) {
+        next = e;
+        break;
+      }
+    }
+    final initials = name.isEmpty
+        ? '?'
+        : name.substring(0, name.length >= 2 ? 2 : 1);
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  backgroundColor: scheme.primaryContainer,
+                  foregroundColor: scheme.onPrimaryContainer,
+                  child: Text(
+                    initials,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  child: Row(
-                    spacing: 4.0,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(e.type),
-                      Spacer(),
-                      Text(DateFormat('EEE, dd.MM.yyyy').format(e.date)),
-                      Icon(Icons.date_range, size: 14),
+                      Text(
+                        name,
+                        style: text.titleMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (cls != null || id.isNotEmpty)
+                        Text(
+                          [if (cls != null) cls, if (id.isNotEmpty) id].join(' · '),
+                          style: text.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                     ],
                   ),
-                );
-              }),
+                ),
+              ],
+            ),
+            if (g.teachers.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 4,
+                runSpacing: 0,
+                children: [
+                  for (final t in g.teachers) TeacherChip(teacher: t),
+                ],
+              ),
+            ],
+            for (final e in exams)
+              _examRow(context, e, isNext: identical(e, next)),
           ],
         ),
       ),
@@ -108,23 +203,65 @@ class StudentCourseView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final groupedStudyGroups = groupBySemester();
-
-    return ListView.builder(
-      itemCount: groupedStudyGroups.length,
-      itemBuilder: (context, index) {
-        final semesterStudyGroups = groupedStudyGroups[index];
-        return Column(
+    final scheme = Theme.of(context).colorScheme;
+    final grouped = _groupBySemester();
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
-            Text(semesterStudyGroups.semester),
-            Column(
-              children: semesterStudyGroups.studyGroup.map((group) {
-                return studyGroupTile(context, group);
-              }).toList(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+              child: SearchBar(
+                hintText: 'Fach oder Lehrer suchen',
+                leading: const Icon(Icons.search),
+                elevation: const WidgetStatePropertyAll(0),
+                padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 14),
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: Wrap(
+                children: [
+                  FilterChip(
+                    avatar: const Icon(Icons.event_rounded, size: 18),
+                    label: const Text('Nur mit Terminen'),
+                    selected: _onlyWithExams,
+                    onSelected: (v) => setState(() => _onlyWithExams = v),
+                  ),
+                ],
+              ),
+            ),
+            if (grouped.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Center(
+                  child: Text(
+                    'Keine Lerngruppen gefunden.',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ),
+            for (final sem in grouped) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                child: Text(
+                  sem.semester,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.primary,
+                  ),
+                ),
+              ),
+              for (final g in sem.studyGroup) _courseCard(context, g),
+            ],
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

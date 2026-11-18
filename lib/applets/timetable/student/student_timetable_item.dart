@@ -252,16 +252,15 @@ class ItemBlock extends StatelessWidget {
         ? soften(context, color!)
         : color;
     if (cancelled && shown != null) {
-      shown = Color.lerp(
-        Theme.of(context).colorScheme.surfaceContainerHigh,
-        Colors.grey,
-        0.35,
-      );
+      // Ausfall: fast durchsichtig statt grau.
+      shown = (color ?? shown).withValues(alpha: 0.12);
     }
     TextStyle textStyle = TextStyle(
       decoration: cancelled ? TextDecoration.lineThrough : null,
       fontSize: 12,
-      color: shown != null
+      color: cancelled
+          ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)
+          : shown != null
           ? shown.computeLuminance() > 0.5
                 ? Colors.black
                 : Colors.white

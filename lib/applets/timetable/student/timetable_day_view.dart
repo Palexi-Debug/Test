@@ -298,14 +298,13 @@ class _TimetableDayViewState extends State<TimetableDayView> {
       _dateOf(_day),
       widget.data.hours,
     );
+    // Ausfall: fast durchsichtig, Text in normaler Textfarbe.
     final bg = cancelled
-        ? Color.lerp(
-            Theme.of(context).colorScheme.surfaceContainerHigh,
-            Colors.grey,
-            0.35,
-          )!
+        ? raw.withValues(alpha: 0.12)
         : ItemBlock.soften(context, raw);
-    final fg = bg.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+    final fg = cancelled
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)
+        : (bg.computeLuminance() > 0.5 ? Colors.black : Colors.white);
     final a = _min(s.startTime);
     final b = _min(s.endTime);
     final current = showNow && nowMin >= a && nowMin < b;

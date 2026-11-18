@@ -19,6 +19,18 @@ List<ReceiverEntry> exactKuerzelMatches(
   return exact.isNotEmpty ? exact : all;
 }
 
+typedef _KuerzelResult = (String, List<ReceiverEntry>, bool);
+
+/// Zerlegt "HY, REI" / "HY/REI" / "HY und REI" in einzelne Kürzel.
+List<String> splitKuerzel(String raw) {
+  final seen = <String>{};
+  return raw
+      .split(RegExp(r'\s*(?:,|;|/|\+|&|\bund\b)\s*', caseSensitive: false))
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty && seen.add(e.toLowerCase()))
+      .toList();
+}
+
 /// Voller Name zu einem Kürzel ("Nachname, Vorname") oder null.
 Future<String?> teacherFullName(BuildContext context, String kuerzel) async {
   try {
@@ -45,51 +57,86 @@ Future<void> showTeacherNameDialog(BuildContext context, String raw) {
   final parser = ProviderScope.containerOf(
     context,
   ).read(conversationsParserProvider);
-  final future = parser.searchTeacher(kuerzel);
+  final parts = splitKuerzel(kuerzel);
+  final future = Future.wait<_KuerzelResult>(
+    parts.map<Future<_KuerzelResult>>((k) async {
+      try {
+        final r = await parser.searchTeacher(k);
+        return (
+          k,
+          exactKuerzelMatches(r.where((e) => e.isTeacher).toList(), k),
+          false,
+        );
+      } catch (_) {
+        return (k, const <ReceiverEntry>[], true);
+      }
+    }),
+  );
   final wear = WearMode.enabled;
 
-  Widget body(BuildContext ctx) => FutureBuilder<List<ReceiverEntry>>(
-    future: future,
-    builder: (context, snap) {
-      final style = wear
-          ? const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)
-          : Theme.of(context).textTheme.titleMedium;
-      final align = wear ? TextAlign.center : TextAlign.start;
-      if (snap.connectionState != ConnectionState.done) {
-        return SizedBox(
-          height: wear ? 36 : 56,
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 3)),
-        );
-      }
-      if (snap.hasError) {
-        return Text(
-          'Name konnte nicht geladen werden.',
-          textAlign: align,
-        );
-      }
-      final list = exactKuerzelMatches(
-        (snap.data ?? const <ReceiverEntry>[])
-            .where((e) => e.isTeacher)
-            .toList(),
-        kuerzel,
+  Widget body(BuildContext ctx) =>
+      FutureBuilder<List<_KuerzelResult>>(
+        future: future,
+        builder: (context, snap) {
+          final style = wear
+              ? const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)
+              : Theme.of(context).textTheme.titleMedium;
+          final align = wear ? TextAlign.center : TextAlign.start;
+          if (snap.connectionState != ConnectionState.done) {
+            return SizedBox(
+              height: wear ? 36 : 56,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+            );
+          }
+          final List<_KuerzelResult> results = snap.data ?? <_KuerzelResult>[];
+          final multi = results.length > 1;
+          if (results.isEmpty || results.every((r) => r.$3)) {
+            return Text('Name konnte nicht geladen werden.', textAlign: align);
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: wear
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
+            children: [
+              for (final r in results)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: wear ? 3 : 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: wear
+                        ? CrossAxisAlignment.center
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (multi)
+                        Text(
+                          r.$1,
+                          textAlign: align,
+                          style: TextStyle(
+                            fontSize: wear ? 11 : 12,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      if (r.$2.isEmpty)
+                        Text(
+                          r.$3
+                              ? 'Name konnte nicht geladen werden.'
+                              : 'Kein Lehrer zu diesem Kürzel gefunden.',
+                          textAlign: align,
+                        )
+                      else
+                        for (final e in r.$2)
+                          Text(e.name, style: style, textAlign: align),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
       );
-      if (list.isEmpty) {
-        return Text('Kein Lehrer zu diesem Kürzel gefunden.', textAlign: align);
-      }
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment:
-            wear ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-        children: [
-          for (final e in list)
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: wear ? 2 : 4),
-              child: Text(e.name, style: style, textAlign: align),
-            ),
-        ],
-      );
-    },
-  );
 
   if (wear) {
     // Uhr: schwarzer, randloser Dialog mit großer Tipp-Fläche zum Schließen.

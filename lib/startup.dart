@@ -106,12 +106,12 @@ class _StartupScreenState extends ConsumerState<StartupScreen> {
     if (WearMode.enabled) {
       // Kompakte, runde Uhr-Ansicht
       return Container(
-        color: Colors.black,
+        decoration: const BoxDecoration(gradient: kLogoGradient),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const AnimatedBookLogo(size: 96),
+              const AnimatedBookLogo(size: 96, withBackground: false),
               const SizedBox(height: 8),
               const Text(
                 'Schulportal',

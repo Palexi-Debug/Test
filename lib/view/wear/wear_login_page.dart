@@ -106,14 +106,16 @@ class _WearLoginPageState extends ConsumerState<WearLoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
+      backgroundColor: const Color(0xFF1F2A7A),
+      body: Container(
+        decoration: const BoxDecoration(gradient: kLogoGradient),
+        child: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const AnimatedBookLogo(size: 64),
+              const AnimatedBookLogo(size: 64, withBackground: false),
               const SizedBox(height: 8),
               const Text(
                 'Mit Handy verbinden',
@@ -146,6 +148,7 @@ class _WearLoginPageState extends ConsumerState<WearLoginPage> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

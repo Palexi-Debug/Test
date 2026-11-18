@@ -100,27 +100,59 @@ class AppletParser<T> {
     _controller.close();
   }
 
+  /// Zeigt gespeicherte Daten (offline): zuerst die zuletzt geladenen Daten im
+  /// Speicher, sonst den Cache aus der Datenbank. Gibt `false` zurück, wenn es
+  /// nichts zu zeigen gibt.
+  bool _emitOfflineFallback(FetcherResponse<T> previous) {
+    if (previous.content != null) {
+      addResponse(
+        FetcherResponse<T>(
+          status: FetcherStatus.done,
+          contentStatus: ContentStatus.offline,
+          content: previous.content,
+          fetchedAt: previous.fetchedAt,
+          error: null,
+        ),
+      );
+      return true;
+    }
+    if (!appletMeta.allowOffline) return false;
+    try {
+      final offlineData = ctx.database.getAppletOfflineData(
+        accountId: ctx.accountId,
+        appletId: appletMeta.appletPhpUrl,
+      );
+      if (offlineData == null) return false;
+      final content = typeFromJson(offlineData.json);
+      addResponse(
+        FetcherResponse<T>(
+          status: FetcherStatus.done,
+          contentStatus: ContentStatus.offline,
+          content: content,
+          fetchedAt: offlineData.timestamp,
+          error: null,
+        ),
+      );
+      return true;
+    } catch (_) {
+      // Kaputter Cache: verwerfen, damit er nicht dauerhaft stört.
+      try {
+        ctx.database.deleteAppletOfflineData(
+          accountId: ctx.accountId,
+          appletId: appletMeta.appletPhpUrl,
+        );
+      } catch (_) {}
+      return false;
+    }
+  }
+
   Future<void> fetchData({
     bool forceRefresh = false,
     bool secondTry = false,
   }) async {
     if (!(await isConnected())) {
-      if (isEmpty) {
-        final offlineData = ctx.database.getAppletOfflineData(
-          accountId: ctx.accountId,
-          appletId: appletMeta.appletPhpUrl,
-        );
-        if (offlineData != null) {
-          addResponse(
-            FetcherResponse(
-              status: FetcherStatus.done,
-              contentStatus: ContentStatus.offline,
-              content: typeFromJson(offlineData.json),
-              fetchedAt: offlineData.timestamp,
-              error: null,
-            ),
-          );
-        } else {
+      if (isEmpty || _latestResponse.content == null) {
+        if (!_emitOfflineFallback(_latestResponse)) {
           addResponse(
             FetcherResponse(
               status: FetcherStatus.error,
@@ -129,13 +161,21 @@ class AppletParser<T> {
             ),
           );
         }
+      } else if (_latestResponse.contentStatus != ContentStatus.offline) {
+        // Verbindung verloren: vorhandene Daten bleiben, mit Offline-Hinweis.
+        _emitOfflineFallback(_latestResponse);
       }
-
       return;
     }
 
     if (isEmpty || forceRefresh) {
-      addResponse(FetcherResponse(status: FetcherStatus.fetching, error: null));
+      final previous = _latestResponse;
+      // Vorhandene Daten bleiben beim Aktualisieren sichtbar.
+      if (previous.content == null) {
+        addResponse(
+          FetcherResponse(status: FetcherStatus.fetching, error: null),
+        );
+      }
 
       try {
         final data = await _getHome();
@@ -153,6 +193,9 @@ class AppletParser<T> {
             await ctx.session.authenticate();
           } catch (authError, authStack) {
             _reportUnexpectedError(authError, authStack);
+            // Portal nicht erreichbar/Login fehlgeschlagen: gespeicherte
+            // Daten zeigen, falls vorhanden.
+            if (_emitOfflineFallback(previous)) return;
             addResponse(
               FetcherResponse<T>(
                 status: FetcherStatus.error,
@@ -168,6 +211,7 @@ class AppletParser<T> {
           return;
         }
         _reportUnexpectedError(ex, stack);
+        if (_emitOfflineFallback(previous)) return;
         addResponse(
           FetcherResponse<T>(
             status: FetcherStatus.error,

@@ -358,15 +358,11 @@ class _LookSectionState extends ConsumerState<_LookSection> {
     notifyThemeChanged(ref);
   }
 
-  /// Einstellungen der unteren Leiste direkt unter der Vorschau.
+  /// Einstellungen der unteren Leiste, oben IN der Vorschau (nutzt deren Stil).
   Widget _navControls(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final order = _order;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Column(
+    return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SwitchListTile(
@@ -415,10 +411,8 @@ class _LookSectionState extends ConsumerState<_LookSection> {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
           ],
-        ),
-      ),
     );
   }
 
@@ -458,9 +452,9 @@ class _LookSectionState extends ConsumerState<_LookSection> {
             center: _center,
             labels: _labels,
             order: _order,
+            controls: Builder(builder: _navControls),
           ),
         ),
-        _navControls(context),
         if (_p.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -641,6 +635,7 @@ class _Preview extends StatelessWidget {
   final bool center;
   final bool labels;
   final List<String> order;
+  final Widget? controls;
 
   const _Preview({
     required this.seed,
@@ -651,6 +646,7 @@ class _Preview extends StatelessWidget {
     required this.center,
     required this.labels,
     required this.order,
+    this.controls,
   });
 
   /// "Start" ist in der Vorschau markiert (wie auf Bild der echten Leiste).
@@ -733,6 +729,7 @@ class _Preview extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (controls != null) controls!,
                   Container(
                     height: 44,
                     alignment: center ? Alignment.center : Alignment.centerLeft,

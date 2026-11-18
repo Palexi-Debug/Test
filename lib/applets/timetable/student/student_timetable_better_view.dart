@@ -32,6 +32,30 @@ class StudentTimetableBetterView extends ConsumerStatefulWidget {
 
 class _StudentTimetableBetterViewState
     extends ConsumerState<StudentTimetableBetterView> {
+  StreamSubscription? _subSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Der Stundenplan braucht den Vertretungsplan für die Ausfall-Anzeige,
+    // auch wenn die Vertretungsseite noch nie geöffnet wurde.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final p = ref.read(substitutionsParserProvider);
+        _subSub = p.stream.listen((_) {
+          if (mounted) setState(() {});
+        });
+        p.fetchData();
+      } catch (_) {}
+    });
+  }
+
+  @override
+  void dispose() {
+    _subSub?.cancel();
+    super.dispose();
+  }
+
   List<TimetableDay> getSelectedPlan(
     TimeTable data,
     TimeTableType selectedType,

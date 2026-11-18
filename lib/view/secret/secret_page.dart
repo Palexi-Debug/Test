@@ -472,12 +472,16 @@ class _SecretGamePageState extends State<SecretGamePage>
   // Alles skaliert mit der Bildschirmhöhe (Referenz: Handy mit 800 dp),
   // damit das Spiel auf Uhr und Tablet genauso spielbar ist.
   double get _s => (_size.height / 800).clamp(0.3, 2.2).toDouble();
-  double get _radius => max(8.0, 18 * _s);
-  double get _gravity => 1500 * _s;
-  double get _flapVelocity => -520 * _s;
-  double get _speed => 135 * _s;
-  double get _obstacleWidth => max(22.0, 64 * _s);
-  double get _groundHeight => max(10.0, 24 * _s);
+  // Uhr (rund, klein): alles relativ zur Bildschirmgröße, größer gezeichnet
+  // (hineingezoomt), schneller, Hindernisse erscheinen näher am Rand.
+  bool get _w => WearMode.enabled;
+  double get _radius => _w ? _size.height * 0.07 : max(8.0, 18 * _s);
+  double get _gravity => _w ? _size.height * 1.9 : 1500 * _s;
+  double get _flapVelocity => _w ? -_size.height * 0.66 : -520 * _s;
+  double get _speed => _w ? _size.width * 0.38 : 135 * _s;
+  double get _obstacleWidth => _w ? _size.height * 0.13 : max(22.0, 64 * _s);
+  double get _groundHeight =>
+      _w ? max(14.0, _size.height * 0.09) : max(10.0, 24 * _s);
 
   late final Ticker _ticker;
   Duration _last = Duration.zero;
@@ -491,8 +495,9 @@ class _SecretGamePageState extends State<SecretGamePage>
   bool _started = false;
   bool _dead = false;
 
-  double get _gap => max(170.0 * _s, _size.height * 0.26);
-  double get _playerX => _size.width * 0.28;
+  double get _gap =>
+      _w ? _size.height * 0.34 : max(170.0 * _s, _size.height * 0.26);
+  double get _playerX => _size.width * (_w ? 0.32 : 0.28);
 
   @override
   void initState() {
@@ -550,12 +555,15 @@ class _SecretGamePageState extends State<SecretGamePage>
     }
     _obstacles.removeWhere((o) => o.x + _obstacleWidth < -10);
 
-    if (_obstacles.isEmpty || _obstacles.last.x < _size.width - max(110.0, 260 * _s)) {
-      final margin = max(24.0, 70 * _s);
+    final spacing = _w ? _size.width * 0.58 : max(110.0, 260 * _s);
+    if (_obstacles.isEmpty || _obstacles.last.x < _size.width - spacing) {
+      final margin = _w ? _size.height * 0.2 : max(24.0, 70 * _s);
       final gap = _gap;
       final maxTop = _size.height - _groundHeight - margin - gap;
       final top = margin + _random.nextDouble() * max(1.0, maxTop - margin);
-      _obstacles.add(_Obstacle(_size.width + 10, top));
+      // Uhr: Hindernis erscheint schon im sichtbaren Kreis, nicht weit rechts
+      // außerhalb.
+      _obstacles.add(_Obstacle(_w ? _size.width * 0.9 : _size.width + 10, top));
     }
 
     for (final o in _obstacles) {
@@ -612,7 +620,7 @@ class _SecretGamePageState extends State<SecretGamePage>
                 ),
                 SafeArea(
                   child: Align(
-                    alignment: Alignment.topLeft,
+                    alignment: _w ? const Alignment(-0.55, -0.55) : Alignment.topLeft,
                     child: IconButton(
                       iconSize: 28,
                       padding: const EdgeInsets.all(14),
@@ -626,7 +634,7 @@ class _SecretGamePageState extends State<SecretGamePage>
                   ),
                 ),
                 Positioned(
-                  top: max(28.0, 56 * _s),
+                  top: _w ? _size.height * 0.13 : max(28.0, 56 * _s),
                   left: 0,
                   right: 0,
                   child: IgnorePointer(
