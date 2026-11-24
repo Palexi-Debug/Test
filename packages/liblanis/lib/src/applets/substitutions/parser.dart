@@ -59,15 +59,31 @@ class SubstitutionsParser extends AppletParser<SubstitutionPlan> {
   @override
   Future<SubstitutionPlan> getHome() async {
     loadFilterFromStorage();
-    final document = await getSubstitutionPlanDocument();
-    final dates = getSubstitutionDates(document);
-    final ajaxByDate = <String, String>{};
-    for (final date in dates) {
-      ajaxByDate[date] = await fetchSubstitutionsAjaxBody(date);
+    var document = await getSubstitutionPlanDocument();
+    var ajaxByDate = await _fetchAllDays(document);
+    // Liefert der Server für ALLE Tage nur "-1" (o. ä.), ist meist die Sitzung
+    // abgelaufen. Das würde sonst als "keine Vertretungen" erscheinen. Einmal
+    // neu anmelden und wiederholen.
+    if (ajaxByDate.isNotEmpty &&
+        ajaxByDate.values.every((b) => double.tryParse(b.trim()) != null)) {
+      try {
+        await ctx.session.authenticate();
+        document = await getSubstitutionPlanDocument();
+        ajaxByDate = await _fetchAllDays(document);
+      } catch (_) {}
     }
     final plan = parseDocumentHtml(document, ajaxByDate: ajaxByDate);
     plan.filterAll(localFilter);
     return plan;
+  }
+
+  Future<Map<String, String>> _fetchAllDays(String document) async {
+    final dates = getSubstitutionDates(document);
+    final out = <String, String>{};
+    for (final date in dates) {
+      out[date] = await fetchSubstitutionsAjaxBody(date);
+    }
+    return out;
   }
 
   /// Offline entry: parse shell HTML plus optional AJAX day bodies.
