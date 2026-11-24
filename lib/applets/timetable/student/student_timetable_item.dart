@@ -9,6 +9,7 @@ import 'package:lanis/applets/conversations/view/shared.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_better_view.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
 import 'package:lanis/applets/timetable/student/cancelled.dart';
+import 'package:lanis/applets/substitutions/teacher_lookup.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/utils/root_nav.dart';
 
@@ -181,7 +182,11 @@ class ItemBlock extends StatelessWidget {
                   Icons.access_time,
                 ),
                 if (subject?.lehrer != null)
-                  modalSheetItem(subject!.lehrer!, Icons.person),
+                  modalSheetItem(
+                    subject!.lehrer!,
+                    Icons.person,
+                    onTap: (ctx) => showTeacherNameDialog(ctx, subject!.lehrer!),
+                  ),
                 if (subject?.badge != null)
                   modalSheetItem(subject!.badge!, Icons.info),
               ],
@@ -192,20 +197,51 @@ class ItemBlock extends StatelessWidget {
     );
   }
 
-  Widget modalSheetItem(String content, IconData icon) {
+  Widget modalSheetItem(
+    String content,
+    IconData icon, {
+    void Function(BuildContext context)? onTap,
+  }) {
     return Builder(
       builder: (context) {
+        final row = Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Icon(icon, size: 24),
+            ),
+            Flexible(
+              child: Text(
+                content,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  decoration: onTap != null ? TextDecoration.underline : null,
+                  decorationStyle: TextDecorationStyle.dotted,
+                ),
+              ),
+            ),
+            if (onTap != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 6.0),
+                child: Icon(
+                  Icons.person_search_rounded,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+          ],
+        );
         return Padding(
           padding: const EdgeInsets.only(bottom: 4.0),
-          child: Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Icon(icon, size: 24),
-              ),
-              Text(content, style: Theme.of(context).textTheme.labelLarge),
-            ],
-          ),
+          child: onTap == null
+              ? row
+              : InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => onTap(context),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: row,
+                  ),
+                ),
         );
       },
     );

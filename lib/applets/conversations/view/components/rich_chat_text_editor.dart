@@ -32,15 +32,27 @@ class _RichChatTextEditorState extends State<RichChatTextEditor> {
   StreamSubscription<DocChange>? _changesSub;
   bool showToolbar = false;
   int editorlineCount = 1;
+  bool _empty = true;
+  double _lastHeight = -1;
   final GlobalKey _widgetKey = GlobalKey();
+  // Fester Fokus und Scroll-Controller: der Editor behält so die Verbindung zur
+  // Tastatur (sonst gingen z. B. Löschen-Tasten verloren).
+  final FocusNode _focusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
 
   void onEditorChange() {
     if (!mounted) return;
+    // Nur neu aufbauen, wenn sich etwas Sichtbares ändert. Ein Neuaufbau bei
+    // jedem Tastendruck stört die Eingabe (Android-Tastatur).
     final text = quillController.document.toPlainText();
-    setState(() {
-      editorlineCount = '\n'.allMatches(text).length + 1;
-    });
-
+    final lines = '\n'.allMatches(text).length + 1;
+    final empty = quillController.document.isEmpty();
+    if (lines != editorlineCount || empty != _empty) {
+      setState(() {
+        editorlineCount = lines;
+        _empty = empty;
+      });
+    }
     _notifyHeightChange();
   }
 
@@ -51,6 +63,9 @@ class _RichChatTextEditorState extends State<RichChatTextEditor> {
           _widgetKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {
         final height = renderBox.size.height;
+        // Nur melden, wenn sich die Höhe geändert hat.
+        if ((height - _lastHeight).abs() < 0.5) return;
+        _lastHeight = height;
         widget.editorSizeChangeCallback(height);
       }
     });
@@ -68,6 +83,8 @@ class _RichChatTextEditorState extends State<RichChatTextEditor> {
   void dispose() {
     _changesSub?.cancel();
     quillController.dispose();
+    _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -134,8 +151,10 @@ class _RichChatTextEditorState extends State<RichChatTextEditor> {
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         constraints: const BoxConstraints(maxHeight: 150),
-                        child: QuillEditor.basic(
+                        child: QuillEditor(
                           controller: quillController,
+                          focusNode: _focusNode,
+                          scrollController: _scrollController,
                           config: QuillEditorConfig(
                             placeholder: widget.tooltip,
                             customStyles: DefaultStyles(
@@ -197,7 +216,7 @@ class _RichChatTextEditorState extends State<RichChatTextEditor> {
                       widget.scrollToBottom();
                     },
                     icon: Icon(Icons.send),
-                    color: quillController.document.isEmpty()
+                    color: _empty
                         ? Theme.of(context).colorScheme.onTertiary.withAlpha(80)
                         : Theme.of(context).colorScheme.onTertiary,
                     style: IconButton.styleFrom(

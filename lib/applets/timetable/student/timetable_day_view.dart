@@ -8,6 +8,7 @@ import 'package:lanis/applets/timetable/definition.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_item.dart';
 import 'package:lanis/applets/timetable/student/timetable_helper.dart';
 import 'package:lanis/applets/timetable/student/cancelled.dart';
+import 'package:lanis/widgets/week_badge.dart';
 import 'package:lanis/utils/liblanis_ui.dart';
 import 'package:lanis/widgets/entrance.dart';
 
@@ -157,10 +158,21 @@ class _TimetableDayViewState extends State<TimetableDayView> {
           if (first != null && last != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                'Unterricht ${hm(first)} – ${hm(last)} Uhr'
-                '${widget.data.weekBadge != null && widget.data.weekBadge!.isNotEmpty ? ' · Woche ${widget.data.weekBadge}' : ''}',
-                style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (widget.data.weekBadge != null &&
+                      widget.data.weekBadge!.isNotEmpty) ...[
+                    WeekBadgeChip(badge: widget.data.weekBadge!, compact: true),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    'Unterricht ${hm(first)} – ${hm(last)} Uhr',
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
           Expanded(

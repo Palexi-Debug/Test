@@ -43,6 +43,7 @@ class TimetableStudentParser extends AppletParser<TimeTable> {
         .querySelector('#aktuelleWoche')
         ?.text
         .trim();
+    final String? weekDate = _parseWeekDate(document);
 
     // Missing full plan table: return empty rather than crashing (LANIS-MOBILE-I).
     if (tbodyAll == null) {
@@ -51,6 +52,7 @@ class TimetableStudentParser extends AppletParser<TimeTable> {
         planForOwn: tbodyOwn == null ? null : parseRoomPlan(tbodyOwn),
         hours: const [],
         weekBadge: weekBadge,
+        weekDate: weekDate,
       );
     }
 
@@ -59,7 +61,31 @@ class TimetableStudentParser extends AppletParser<TimeTable> {
       planForOwn: tbodyOwn == null ? null : parseRoomPlan(tbodyOwn),
       hours: parseRows(tbodyAll),
       weekBadge: weekBadge,
+      weekDate: weekDate,
     );
+  }
+
+  /// Datum aus "23.11.2026: Diese Woche ist eine G-Woche" als Montag der
+  /// Woche (yyyy-MM-dd), sonst null.
+  static String? _parseWeekDate(Document document) {
+    try {
+      final text = document.body?.text ?? '';
+      final m = RegExp(
+        r'(\d{1,2})\.(\d{1,2})\.(\d{4})\s*:\s*Diese\s+Woche',
+        caseSensitive: false,
+      ).firstMatch(text);
+      if (m == null) return null;
+      final d = DateTime(
+        int.parse(m.group(3)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(1)!),
+      );
+      final monday = DateTime(d.year, d.month, d.day - (d.weekday - 1));
+      String two(int v) => v.toString().padLeft(2, '0');
+      return '${monday.year}-${two(monday.month)}-${two(monday.day)}';
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

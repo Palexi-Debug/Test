@@ -15,6 +15,7 @@ import 'package:lanis/applets/timetable/student/timetable_week_selection.dart';
 import 'package:lanis/applets/timetable/student/timetable_day_view.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
+import 'package:lanis/widgets/week_badge.dart';
 
 final double itemHeight = 52;
 final double headerHeight = 48;
@@ -139,7 +140,9 @@ class _StudentTimetableBetterViewState
               ])
                 for (final day in plan ?? <TimetableDay>[])
                   for (final lesson in day)
-                    if (lesson.badge != null && lesson.badge!.trim().isNotEmpty)
+                    if (lesson.badge != null &&
+                        lesson.badge!.trim().isNotEmpty &&
+                        !TimeTableData.isHalfYearBadge(lesson.badge))
                       lesson.badge!.trim(),
               if (timetable.weekBadge?.trim().isNotEmpty ?? false)
                 timetable.weekBadge!.trim(),
@@ -147,8 +150,11 @@ class _StudentTimetableBetterViewState
             }.toList()..sort();
             // Cached/offline badges belong to the fetched week too. Advance
             // the dates only when fresh server data supplies the new badge.
+            // Bevorzugt das Datum, das das Portal selbst nennt (stimmt auch am
+            // Wochenende); sonst die Woche des letzten Abrufs.
+            final portalWeek = DateTime.tryParse(timetable.weekDate ?? '');
             final weekStart = timetableWeekStart(
-              parser.latestResponse?.fetchedAt ?? DateTime.now(),
+              portalWeek ?? parser.latestResponse?.fetchedAt ?? DateTime.now(),
             );
 
             TimeTableData data = TimeTableData(
@@ -173,6 +179,9 @@ class _StudentTimetableBetterViewState
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: Row(
                           children: [
+                            if (selectedBadge != null &&
+                                selectedBadge.isNotEmpty)
+                              WeekBadgeChip(badge: selectedBadge, compact: true),
                             if (uniqueBadges.isNotEmpty)
                               PopupMenuButton<TimetableWeekSelection>(
                                 tooltip: AppLocalizations.of(context).week,

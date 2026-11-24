@@ -13,6 +13,7 @@ import 'package:lanis/view/secret/secret_page.dart';
 import 'package:lanis/view/wear/wear_substitutions_page.dart';
 import 'package:lanis/widgets/book_logo.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
+import 'package:lanis/widgets/week_badge.dart';
 
 /// Wear-OS-Startseite: senkrecht wischbare Seiten für das Wichtigste.
 /// Jetzt (aktuelle/nächste Stunde) · Heute (Stundenplan) · Vertretungen · Update
@@ -243,16 +244,27 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
           AccountType.student,
       builder: (context, timetable, accountType, settings, update, refresh) {
         final base = timetable.planForOwn ?? timetable.planForAll ?? const [];
+        final wb = (timetable.weekBadge ?? '').trim();
         final hidden = (settings['hidden-lessons'] as List?) ?? const [];
         final plan = TimeTableHelper.mergeByIndices(
           base,
           TimeTableHelper.getCustomLessons(settings),
-        ).map((day) => day.where((l) => !hidden.contains(l.id)).toList()).toList();
+        ).map((day) => day.where((l) => !hidden.contains(l.id) && _inWeek(l, wb)).toList()).toList();
         return widget.now
-            ? _buildNow(context, plan)
-            : _buildToday(context, plan);
+            ? _buildNow(context, plan, wb)
+            : _buildToday(context, plan, wb);
       },
     );
+  }
+
+  /// G/U-Woche und Halbjahr-Markierungen beachten (wie auf dem Handy).
+  bool _inWeek(TimetableSubject l, String weekBadge) {
+    final b = (l.badge ?? '').trim();
+    if (TimeTableData.isHalfYearBadge(b)) {
+      return TimeTableData.halfYearActive(b, DateTime.now());
+    }
+    if (weekBadge.isEmpty || b.isEmpty) return true;
+    return weekBadge == b;
   }
 
   /// Lehrplan des heutigen Tages, nach Startzeit sortiert.
@@ -263,7 +275,11 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
     return l;
   }
 
-  Widget _buildNow(BuildContext context, List<List<TimetableSubject>> plan) {
+  Widget _buildNow(
+    BuildContext context,
+    List<List<TimetableSubject>> plan,
+    String weekBadge,
+  ) {
     final now = DateTime.now();
     final nowMin = now.hour * 60 + now.minute;
     final today = _lessonsOf(plan, now.weekday - 1);
@@ -346,6 +362,13 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
       ]);
     }
 
+    if (weekBadge.isNotEmpty) {
+      children.addAll([
+        const SizedBox(height: 6),
+        WeekBadgeChip(badge: weekBadge, compact: true),
+      ]);
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -357,7 +380,11 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
     );
   }
 
-  Widget _buildToday(BuildContext context, List<List<TimetableSubject>> plan) {
+  Widget _buildToday(
+    BuildContext context,
+    List<List<TimetableSubject>> plan,
+    String weekBadge,
+  ) {
     final now = DateTime.now();
     final nowMin = now.hour * 60 + now.minute;
     var day = now.weekday - 1;
@@ -380,15 +407,22 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
     return ListView(
       padding: const EdgeInsets.fromLTRB(28, 40, 34, 40),
       children: [
-        Center(
-          child: Text(
-            isToday ? 'Heute' : _weekdays[day],
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: scheme.primary,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              isToday ? 'Heute' : _weekdays[day],
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: scheme.primary,
+              ),
             ),
-          ),
+            if (weekBadge.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              WeekBadgeChip(badge: weekBadge, compact: true),
+            ],
+          ],
         ),
         const SizedBox(height: 6),
         if (lessons.isEmpty)

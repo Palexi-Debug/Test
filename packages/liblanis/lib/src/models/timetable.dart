@@ -94,7 +94,17 @@ class TimeTable {
   List<TimeTableRow>? hours;
   String? weekBadge;
 
-  TimeTable({this.planForAll, this.planForOwn, this.weekBadge, this.hours});
+  /// Montag der vom Portal genannten aktuellen Schulwoche (yyyy-MM-dd), aus
+  /// dem Satz "23.11.2026: Diese Woche ist eine G-Woche". Kann fehlen.
+  String? weekDate;
+
+  TimeTable({
+    this.planForAll,
+    this.planForOwn,
+    this.weekBadge,
+    this.hours,
+    this.weekDate,
+  });
 
   TimeTable.fromJson(Map<String, dynamic> json) {
     planForAll = (json['planForAll'] as List?)
@@ -121,6 +131,7 @@ class TimeTable {
         ?.map((hour) => TimeTableRow.fromJson(hour as Map<String, dynamic>))
         .toList();
     weekBadge = json['weekBadge'];
+    weekDate = json['weekDate'];
   }
 
   Map<String, dynamic> toJson() {
@@ -133,6 +144,7 @@ class TimeTable {
         .toList();
     data['hours'] = hours?.map((hour) => hour.toJson()).toList();
     data['weekBadge'] = weekBadge;
+    data['weekDate'] = weekDate;
     return data;
   }
 }
@@ -210,7 +222,23 @@ class TimeTableData {
   late final String? weekBadge;
   List<TimetableDay> timetableDays = [];
 
+  /// "1. Hj." / "2. Hj." ist eine Halbjahr-Markierung, keine Woche (G/U).
+  static bool isHalfYearBadge(String? badge) =>
+      badge != null && RegExp(r'^\s*\d\.?\s*Hj', caseSensitive: false).hasMatch(badge);
+
+  /// Gilt das Halbjahr der Markierung jetzt? (1. Halbjahr: August bis Januar.)
+  static bool halfYearActive(String badge, DateTime now) {
+    final first = RegExp(r'\d').firstMatch(badge)?.group(0);
+    final inFirst = now.month >= 8 || now.month == 1;
+    if (first == '1') return inFirst;
+    if (first == '2') return !inFirst;
+    return true;
+  }
+
   bool isCurrentWeek(TimetableSubject lesson, bool sameWeek) {
+    if (isHalfYearBadge(lesson.badge)) {
+      return halfYearActive(lesson.badge!, DateTime.now());
+    }
     return (weekBadge == null ||
             weekBadge == '' ||
             lesson.badge == null ||
