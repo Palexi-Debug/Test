@@ -330,6 +330,7 @@ class ItemBlock extends StatelessWidget {
           : InkWell(
               onTap: subject != null ? () => showSubject(context) : null,
               child: _colorContainer(
+                context,
                 calcWidth,
                 shown: shown,
                 child: onlyColor
