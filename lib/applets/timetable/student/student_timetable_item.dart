@@ -189,6 +189,13 @@ class ItemBlock extends StatelessWidget {
                   ),
                 if (subject?.badge != null)
                   modalSheetItem(subject!.badge!, Icons.info),
+                if (subject?.substituted == true)
+                  modalSheetItem(
+                    subject!.substitutionNote == null
+                        ? 'Vertretung (laut Vertretungsplan)'
+                        : 'Vertretung: ${subject!.substitutionNote}',
+                    Icons.swap_horiz_rounded,
+                  ),
               ],
             ),
           ),
@@ -271,8 +278,10 @@ class ItemBlock extends StatelessWidget {
       clipBehavior: Clip.hardEdge, // Clips any overflow, useful for the y axis
       decoration: BoxDecoration(
         border: Border.all(
-          color: color ?? Colors.transparent,
-          width: min(1, width / 3),
+          color: subject?.substituted == true
+              ? Theme.of(context).colorScheme.tertiary
+              : (color ?? Colors.transparent),
+          width: subject?.substituted == true ? 2 : min(1, width / 3),
         ),
         color: color ?? Colors.transparent,
         borderRadius: BorderRadius.circular(12.0),

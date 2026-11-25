@@ -13,6 +13,11 @@ class TimetableSubject {
   // Row index in the timetable
   int? stunde;
 
+  /// Nur zur Anzeige (nicht gespeichert): Stunde wurde durch den
+  /// Vertretungsplan ersetzt, [substitutionNote] ist der Hinweis dazu.
+  bool substituted = false;
+  String? substitutionNote;
+
   TimetableSubject({
     required this.id,
     required this.name,

@@ -16,6 +16,7 @@ import 'package:lanis/applets/timetable/student/timetable_day_view.dart';
 import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
 import 'package:lanis/widgets/week_badge.dart';
+import 'package:lanis/applets/timetable/student/apply_substitutions.dart';
 
 final double itemHeight = 52;
 final double headerHeight = 48;
@@ -156,6 +157,24 @@ class _StudentTimetableBetterViewState
             final weekStart = timetableWeekStart(
               portalWeek ?? parser.latestResponse?.fetchedAt ?? DateTime.now(),
             );
+
+            // Vertretungen (Ersatz, Verlegung, Raumwechsel) in die aktuelle Woche
+            // einsetzen; Ausfälle zeigt der Plan weiterhin durchsichtig.
+            if (weekSelection.mode == TimetableWeekMode.current) {
+              try {
+                final sp =
+                    (ref.read(substitutionsParserProvider) as dynamic)
+                            .latestResponse
+                            ?.content
+                        as SubstitutionPlan?;
+                selectedPlan = applySubstitutions(
+                  plan: selectedPlan,
+                  hours: timetable.hours ?? const <TimeTableRow>[],
+                  subs: sp,
+                  weekStart: weekStart,
+                );
+              } catch (_) {}
+            }
 
             TimeTableData data = TimeTableData(
               selectedPlan,

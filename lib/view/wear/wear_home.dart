@@ -14,6 +14,8 @@ import 'package:lanis/view/wear/wear_substitutions_page.dart';
 import 'package:lanis/widgets/book_logo.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
 import 'package:lanis/widgets/week_badge.dart';
+import 'package:lanis/applets/timetable/student/apply_substitutions.dart';
+import 'package:lanis/applets/timetable/student/timetable_week_selection.dart';
 
 /// Wear-OS-Startseite: senkrecht wischbare Seiten für das Wichtigste.
 /// Jetzt (aktuelle/nächste Stunde) · Heute (Stundenplan) · Vertretungen · Update
@@ -193,6 +195,7 @@ class _WearTimetablePage extends ConsumerStatefulWidget {
 class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
     with WidgetsBindingObserver {
   Timer? _timer;
+  StreamSubscription? _subSub;
 
   // Minutengenau reicht; im Hintergrund (Display aus) läuft kein Timer.
   void _startTimer() {
@@ -207,6 +210,16 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startTimer();
+    // Vertretungen für die Anzeige im Stundenplan laden.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final p = ref.read(substitutionsParserProvider);
+        _subSub = p.stream.listen((_) {
+          if (mounted) setState(() {});
+        });
+        p.fetchData();
+      } catch (_) {}
+    });
   }
 
   @override
@@ -224,6 +237,7 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _subSub?.cancel();
     super.dispose();
   }
 
@@ -246,10 +260,28 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
         final base = timetable.planForOwn ?? timetable.planForAll ?? const [];
         final wb = (timetable.weekBadge ?? '').trim();
         final hidden = (settings['hidden-lessons'] as List?) ?? const [];
-        final plan = TimeTableHelper.mergeByIndices(
+        final merged = TimeTableHelper.mergeByIndices(
           base,
           TimeTableHelper.getCustomLessons(settings),
-        ).map((day) => day.where((l) => !hidden.contains(l.id) && _inWeek(l, wb)).toList()).toList();
+        );
+        // Vertretungen einsetzen (Ersatz/Verlegung), Datum der Woche vom Portal.
+        List<List<TimetableSubject>> withSubs = merged;
+        try {
+          final sp =
+              (ref.read(substitutionsParserProvider) as dynamic)
+                      .latestResponse
+                      ?.content
+                  as SubstitutionPlan?;
+          withSubs = applySubstitutions(
+            plan: merged,
+            hours: timetable.hours ?? const <TimeTableRow>[],
+            subs: sp,
+            weekStart: timetableWeekStart(
+              DateTime.tryParse(timetable.weekDate ?? '') ?? DateTime.now(),
+            ),
+          );
+        } catch (_) {}
+        final plan = withSubs.map((day) => day.where((l) => !hidden.contains(l.id) && _inWeek(l, wb)).toList()).toList();
         return widget.now
             ? _buildNow(context, plan, wb)
             : _buildToday(context, plan, wb);

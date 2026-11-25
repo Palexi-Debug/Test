@@ -331,6 +331,8 @@ class _TimetableDayViewState extends State<TimetableDayView> {
           borderRadius: BorderRadius.circular(20),
           side: current
               ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 3)
+              : s.substituted
+              ? BorderSide(color: Theme.of(context).colorScheme.tertiary, width: 2)
               : BorderSide.none,
         ),
         clipBehavior: Clip.antiAlias,
@@ -394,9 +396,19 @@ class _TimetableDayViewState extends State<TimetableDayView> {
                                 'Raum ${s.raum!}',
                               if (s.duration > 1) 'Doppelstunde',
                               if (cancelled) 'entfällt',
+                              if (s.substituted) 'Vertretung',
                             ].join(' · '),
                             style: TextStyle(color: sub),
                           ),
+                          if (s.substituted && s.substitutionNote != null)
+                            Text(
+                              s.substitutionNote!,
+                              style: TextStyle(
+                                color: sub,
+                                fontStyle: FontStyle.italic,
+                                fontSize: 12,
+                              ),
+                            ),
                         ],
                       ),
                     ),

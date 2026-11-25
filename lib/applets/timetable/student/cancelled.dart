@@ -33,6 +33,24 @@ bool _isCancelText(String? text) {
 
 final Set<String> _loggedCancel = {};
 
+/// Ist dieser Vertretungseintrag ein Ausfall (kein Ersatz)?
+bool isCancelSubstitution(Substitution s) =>
+    _isCancelText(s.art) || _isCancelText(s.hinweis) || _isCancelText(s.hinweis2);
+
+/// Stundennummern aus "3" oder "3 - 4".
+List<int> substitutionHours(String? s) => _range(s);
+
+/// Stundennummern, die eine Stunde im Plan belegt.
+Set<int> lessonHourNumbers(TimetableSubject s, List<TimeTableRow> hours) {
+  final startRow = hours.where(
+    (h) => h.type == TimeTableRowType.lesson && h.startTime == s.startTime,
+  );
+  if (startRow.isEmpty) return {};
+  final from = _range(startRow.first.label);
+  if (from.isEmpty) return {};
+  return {for (var k = 0; k < s.duration; k++) from.first + k};
+}
+
 /// Fällt [s] am Tag [date] laut Vertretungsplan aus?
 bool isLessonCancelled(
   BuildContext context,
