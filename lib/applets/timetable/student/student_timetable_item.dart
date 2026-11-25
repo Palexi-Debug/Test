@@ -270,7 +270,12 @@ class ItemBlock extends StatelessWidget {
     )!;
   }
 
-  Widget _colorContainer(double width, {Widget? child, Color? shown}) {
+  Widget _colorContainer(
+    BuildContext context,
+    double width, {
+    Widget? child,
+    Color? shown,
+  }) {
     final color = shown ?? this.color;
     return Container(
       width: width,
@@ -321,7 +326,7 @@ class ItemBlock extends StatelessWidget {
       top: offset,
       left: hOffset,
       child: disableAction
-          ? _colorContainer(calcWidth, child: SizedBox(), shown: shown)
+          ? _colorContainer(context, calcWidth, child: SizedBox(), shown: shown)
           : InkWell(
               onTap: subject != null ? () => showSubject(context) : null,
               child: _colorContainer(
