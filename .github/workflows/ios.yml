@@ -1,0 +1,29 @@
+name: iOS Test-App
+
+on:
+  push:
+    branches: [ios]
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter create --platforms=ios --project-name lanis .
+      - run: flutter pub get
+      - run: dart run intl_utils:generate
+      - run: flutter build ios --release --no-codesign --dart-define=BUILD_ID=${{ github.run_number }}
+      - name: Unsigniertes IPA (iPhone + iPad) bauen
+        run: |
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry Schulportal-iOS-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Schulportal-iOS-unsigned
+          path: Schulportal-iOS-unsigned.ipa
