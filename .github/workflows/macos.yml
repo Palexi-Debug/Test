@@ -1,0 +1,27 @@
+name: macOS Test-App
+
+on:
+  push:
+    branches: [macos]
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter config --enable-macos-desktop
+      - run: flutter create --platforms=macos --project-name lanis .
+      - run: flutter pub get
+      - run: dart run intl_utils:generate
+      - run: flutter build macos --release --dart-define=BUILD_ID=${{ github.run_number }}
+      - name: Zip
+        run: cd build/macos/Build/Products/Release && ditto -c -k --keepParent *.app "$GITHUB_WORKSPACE/Schulportal-macOS.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Schulportal-macOS
+          path: Schulportal-macOS.zip
