@@ -52,3 +52,10 @@ Daten kommen automatisch vom Handy, Updates moeglichst automatisch.
 - Garmin-Konto-Zugang liegt als Secret im Repo `Palexi-Debug/Test`.
 - Nachrichtengroesse: Connect IQ begrenzt Nachrichten; aktuell max. 10 Stunden + 8 Vertretungen.
 - Versionsschema der Apps: Build 30 = 0.1.0, 31 = 0.1.1, 40 = 0.2.0 (Zehner = Minor).
+
+## Stand 2026-11-26 (0.1.4)
+
+- Heute-Seite scrollt weich (Timer, Pixel-Offset, Clip); Wischen scrollt zuerst die Liste, am Ende wechselt die Seite.
+- Titel zeigt "Heute - G-Woche" (Feld `wk` vom Handy, in Storage gespeichert).
+- Vertretungen werden auf dem Handy in den Plan eingesetzt (garmin_sync.dart `_garminPlan`).
+- Update per USB: neue .prg aus dem Release `garmin-N` installieren.
