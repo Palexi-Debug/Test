@@ -32,6 +32,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
   UpdateInfo? _update;
   double _overscrollSum = 0;
   bool _switching = false;
+  double _font = 1.0; // Textgröße der Uhr (Einstellung)
 
   static const _count = 4;
 
@@ -57,6 +58,11 @@ class _WearHomeState extends ConsumerState<WearHome> {
         _onPhoneData(m);
       }
     }).catchError((_) {});
+    _font = double.tryParse(
+          ref.read(sharedOverAccountSettingsProvider).getString('wear-font') ??
+              '',
+        ) ??
+        1.0;
     checkForUpdate(wear: true).then((r) {
       if (r.result == UpdateCheckResult.newer) {
         // Im Hintergrund vorladen, damit "Installieren" sofort startet.
@@ -81,7 +87,11 @@ class _WearHomeState extends ConsumerState<WearHome> {
       seedColor: Colors.indigo,
       brightness: Brightness.dark,
     );
-    return Theme(
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(_font),
+      ),
+      child: Theme(
       data: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
@@ -141,7 +151,16 @@ class _WearHomeState extends ConsumerState<WearHome> {
                   ),
                   _WearTimetablePage(key: ValueKey('today$_ttRev'), now: false),
                   const WearSubstitutionsPage(),
-                  _WearUpdatePage(initial: _update),
+                  _WearUpdatePage(
+                    initial: _update,
+                    font: _font,
+                    onFont: (v) {
+                      setState(() => _font = v);
+                      ref
+                          .read(sharedOverAccountSettingsProvider)
+                          .setString('wear-font', v.toString());
+                    },
+                  ),
                 ],
               ),
             ),
@@ -173,7 +192,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -285,6 +304,12 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
                       .latestResponse
                       ?.content
                   as SubstitutionPlan?;
+          final subsOn =
+              ref
+                  .read(sharedOverAccountSettingsProvider)
+                  .getString('wear-subs-in-plan') !=
+              '0';
+          if (!subsOn) throw StateError('aus');
           withSubs = applySubstitutions(
             plan: merged,
             hours: timetable.hours ?? const <TimeTableRow>[],
@@ -518,16 +543,25 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
   }
 }
 
-class _WearUpdatePage extends StatefulWidget {
+class _WearUpdatePage extends ConsumerStatefulWidget {
   final UpdateInfo? initial;
-  const _WearUpdatePage({this.initial});
+  final double font;
+  final ValueChanged<double> onFont;
+  const _WearUpdatePage({
+    this.initial,
+    required this.font,
+    required this.onFont,
+  });
 
   @override
-  State<_WearUpdatePage> createState() => _WearUpdatePageState();
+  ConsumerState<_WearUpdatePage> createState() => _WearUpdatePageState();
 }
 
-class _WearUpdatePageState extends State<_WearUpdatePage> {
+class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
   UpdateInfo? _info;
+  bool get _subsOn =>
+      ref.read(sharedOverAccountSettingsProvider).getString('wear-subs-in-plan') !=
+      '0';
   String _status = '';
   bool _busy = false;
   double? _progress;
@@ -624,6 +658,41 @@ class _WearUpdatePageState extends State<_WearUpdatePage> {
                 onPressed: _busy ? null : _check,
                 child: const Text('Nach Update suchen'),
               ),
+            const SizedBox(height: 6),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 2,
+              children: [
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    'Text: ${widget.font < 0.95 ? 'klein' : widget.font > 1.05 ? 'groß' : 'normal'}',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  onPressed: () => widget.onFont(
+                    widget.font < 0.95
+                        ? 1.0
+                        : widget.font > 1.05
+                        ? 0.85
+                        : 1.15,
+                  ),
+                ),
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    'Vertretung im Plan: ${_subsOn ? 'an' : 'aus'}',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  onPressed: () {
+                    ref
+                        .read(sharedOverAccountSettingsProvider)
+                        .setString('wear-subs-in-plan', _subsOn ? '0' : '1');
+                    setState(() {});
+                  },
+                ),
+              ],
+            ),
           ],
         ),
       ),

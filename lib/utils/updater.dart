@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_file/open_file.dart';
@@ -46,14 +47,26 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
     final assets = (data['assets'] as List?) ?? const [];
     String? apk;
     int apkSize = 0;
-    for (final a in assets) {
-      final name = (a['name'] ?? '').toString();
-      final isWear = name.toLowerCase().contains('wear');
-      if (name.endsWith('.apk') && isWear == wear) {
+    // Uhr: passende 64-Bit- oder 32-Bit-Datei für dieses Gerät wählen.
+    var want = '';
+    if (wear) {
+      try {
+        final abis = (await DeviceInfoPlugin().androidInfo).supportedAbis;
+        want = abis.contains('arm64-v8a') ? 'arm64' : 'arm32';
+      } catch (_) {}
+    }
+    for (final pass in [true, false]) {
+      for (final a in assets) {
+        final name = (a['name'] ?? '').toString();
+        final isWear = name.toLowerCase().contains('wear');
+        if (!name.endsWith('.apk') || isWear != wear) continue;
+        // 1. Durchlauf: genau passende ABI; 2. Durchlauf: irgendeine Datei.
+        if (pass && wear && want.isNotEmpty && !name.contains(want)) continue;
         apk = a['browser_download_url']?.toString();
         apkSize = (a['size'] as num?)?.toInt() ?? 0;
         break;
       }
+      if (apk != null) break;
     }
     if (build == null || apk == null) {
       return const UpdateCheck(UpdateCheckResult.failed);
