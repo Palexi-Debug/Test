@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:lanis/utils/logger.dart';
 
@@ -59,6 +63,16 @@ class _LogViewerPageState extends State<LogViewerPage> {
             onPressed: () {
               setState(() {});
               _toBottom();
+            },
+          ),
+          IconButton(
+            tooltip: 'Teilen',
+            icon: const Icon(Icons.ios_share_rounded),
+            onPressed: () async {
+              final dir = await getTemporaryDirectory();
+              final file = File('${dir.path}/schulportal-logs.txt');
+              await file.writeAsString(_text);
+              await Share.shareXFiles([XFile(file.path)]);
             },
           ),
           IconButton(

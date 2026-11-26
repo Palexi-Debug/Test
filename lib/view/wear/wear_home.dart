@@ -30,6 +30,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
   final PageController _pages = PageController();
   int _page = 0;
   UpdateInfo? _update;
+  double _overscrollSum = 0;
   bool _switching = false;
 
   static const _count = 4;
@@ -99,20 +100,32 @@ class _WearHomeState extends ConsumerState<WearHome> {
                 if (n.depth == 0 || n.metrics.axis != Axis.vertical) {
                   return false;
                 }
-                if (n is OverscrollNotification &&
-                    !_switching &&
-                    n.overscroll.abs() > 1) {
-                  _switching = true;
-                  const d = Duration(milliseconds: 300);
-                  if (n.overscroll < 0) {
-                    _pages.previousPage(duration: d, curve: Curves.easeOut);
-                  } else {
-                    _pages.nextPage(duration: d, curve: Curves.easeOut);
+                // Erst nach längerem Wischen am Listenende die Seite wechseln
+                // (entspannteres Scrollen statt sofortigem Umschalten).
+                if (n is ScrollStartNotification ||
+                    n is ScrollEndNotification) {
+                  _overscrollSum = 0;
+                }
+                if (n is OverscrollNotification && !_switching) {
+                  _overscrollSum += n.overscroll;
+                  if (_overscrollSum.abs() > 70) {
+                    final back = _overscrollSum < 0;
+                    _overscrollSum = 0;
+                    _switching = true;
+                    const d = Duration(milliseconds: 450);
+                    if (back) {
+                      _pages.previousPage(
+                        duration: d,
+                        curve: Curves.easeInOutCubic,
+                      );
+                    } else {
+                      _pages.nextPage(duration: d, curve: Curves.easeInOutCubic);
+                    }
+                    Future.delayed(
+                      const Duration(milliseconds: 800),
+                      () => _switching = false,
+                    );
                   }
-                  Future.delayed(
-                    const Duration(milliseconds: 600),
-                    () => _switching = false,
-                  );
                 }
                 return false;
               },

@@ -91,7 +91,8 @@ class LanisSession {
       ),
     );
     dio.options.followRedirects = false;
-    dio.options.connectTimeout = const Duration(seconds: 8);
+    dio.options.connectTimeout = const Duration(seconds: 15);
+    dio.options.receiveTimeout = const Duration(seconds: 30);
     dio.options.validateStatus = (status) =>
         status != null && (status == 200 || status == 302 || status == 503);
   }
@@ -208,8 +209,8 @@ class LanisSession {
       );
       dioHttp.interceptors.add(CookieManager(cookieJar));
       dioHttp.options.followRedirects = false;
-      dioHttp.options.connectTimeout = const Duration(seconds: 8);
-      dioHttp.options.receiveTimeout = const Duration(seconds: 8);
+      dioHttp.options.connectTimeout = const Duration(seconds: 15);
+      dioHttp.options.receiveTimeout = const Duration(seconds: 30);
       dioHttp.options.validateStatus = (status) =>
           status != null && (status == 200 || status == 302 || status == 503);
 

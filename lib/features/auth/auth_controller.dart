@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liblanis/liblanis.dart';
@@ -10,21 +12,36 @@ class AuthState {
   final AuthPhase phase;
   final LanisException? exception;
 
-  const AuthState({required this.phase, this.exception});
+  /// Angemeldet ohne Netz: die App zeigt gespeicherte (veraltete) Daten.
+  final bool offline;
+
+  const AuthState({
+    required this.phase,
+    this.exception,
+    this.offline = false,
+  });
+
+  const AuthState.authenticatedOffline()
+    : phase = AuthPhase.authenticated,
+      exception = null,
+      offline = true;
 
   const AuthState.unauthenticated()
     : phase = AuthPhase.unauthenticated,
-      exception = null;
+      exception = null,
+      offline = false;
 
   const AuthState.authenticating()
     : phase = AuthPhase.authenticating,
-      exception = null;
+      exception = null,
+      offline = false;
 
   const AuthState.authenticated()
     : phase = AuthPhase.authenticated,
-      exception = null;
+      exception = null,
+      offline = false;
 
-  AuthState.error(this.exception) : phase = AuthPhase.error;
+  AuthState.error(this.exception) : phase = AuthPhase.error, offline = false;
 }
 
 class AuthController extends Notifier<AuthState> {
@@ -51,8 +68,43 @@ class AuthController extends Notifier<AuthState> {
     authenticateCallCount = 0;
   }
 
+  Timer? _offlineRetry;
+  bool _offlineRetrying = false;
+
   @override
-  AuthState build() => const AuthState.authenticating();
+  AuthState build() {
+    ref.onDispose(() => _offlineRetry?.cancel());
+    return const AuthState.authenticating();
+  }
+
+  /// Gibt es gespeicherte Daten, mit denen die App offline starten kann?
+  bool _hasOfflineData() {
+    try {
+      return ref.read(lanisDatabaseProvider).listAppletOfflineData().isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Offline-Start: normales Menü mit gespeicherten Daten; im Hintergrund
+  /// wird regelmäßig versucht, sich wieder anzumelden.
+  void _enterOfflineMode() {
+    state = const AuthState.authenticatedOffline();
+    _offlineRetry?.cancel();
+    _offlineRetry = Timer.periodic(const Duration(seconds: 20), (_) async {
+      if (_offlineRetrying || !state.offline) return;
+      _offlineRetrying = true;
+      try {
+        await _authenticate();
+        _offlineRetry?.cancel();
+        state = const AuthState.authenticated();
+      } catch (_) {
+        // weiter offline, später erneut versuchen
+      } finally {
+        _offlineRetrying = false;
+      }
+    });
+  }
 
   Future<void> _authenticate() async {
     authenticateCallCount++;
@@ -107,6 +159,7 @@ class AuthController extends Notifier<AuthState> {
         return;
       }
 
+      _offlineRetry?.cancel();
       await _authenticate();
       state = const AuthState.authenticated();
     } on WrongCredentialsException catch (e) {
@@ -115,7 +168,13 @@ class AuthController extends Notifier<AuthState> {
     } on CredentialsIncompleteException catch (e) {
       state = AuthState.error(e);
     } on LanisException catch (e) {
-      state = AuthState.error(e);
+      // Kein Netz / Portal down / Zeitüberschreitung: mit gespeicherten Daten
+      // normal weiterarbeiten (veraltet), statt nur eine Fehlerseite zu zeigen.
+      if (_hasOfflineData()) {
+        _enterOfflineMode();
+      } else {
+        state = AuthState.error(e);
+      }
     } catch (e) {
       state = AuthState.error(UnknownException(e.toString()));
     }

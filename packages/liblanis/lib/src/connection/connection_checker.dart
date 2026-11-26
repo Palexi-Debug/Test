@@ -20,8 +20,8 @@ class ConnectionChecker {
     dio = Dio(
       BaseOptions(
         validateStatus: (status) => status != null,
-        connectTimeout: const Duration(seconds: 8),
-        receiveTimeout: const Duration(seconds: 8),
+        connectTimeout: const Duration(seconds: 12),
+        receiveTimeout: const Duration(seconds: 12),
       ),
     );
     if (httpAdapter != null) {
@@ -48,14 +48,18 @@ class ConnectionChecker {
   }
 
   Future<bool> testConnection() async {
-    try {
-      await dio.post('https://start.schulportal.hessen.de/ajax_login.php');
-      status = ConnectionStatus.connected;
-      return true;
-    } catch (_) {
-      status = ConnectionStatus.disconnected;
-      return false;
+    // Zwei Versuche: bei schlechtem WLAN/Mobilfunk scheitert der erste oft.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        await dio.post('https://start.schulportal.hessen.de/ajax_login.php');
+        status = ConnectionStatus.connected;
+        return true;
+      } catch (_) {
+        if (attempt == 0) await Future<void>.delayed(const Duration(seconds: 1));
+      }
     }
+    status = ConnectionStatus.disconnected;
+    return false;
   }
 
   void dispose() {

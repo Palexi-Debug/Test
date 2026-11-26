@@ -150,7 +150,13 @@ class AppletParser<T> {
     bool forceRefresh = false,
     bool secondTry = false,
   }) async {
-    if (!(await isConnected())) {
+    var connected = await isConnected();
+    if (!connected && !secondTry) {
+      // Schlechtes Netz: kurz warten und einmal erneut prüfen, bevor "offline".
+      await Future<void>.delayed(const Duration(seconds: 2));
+      connected = await isConnected();
+    }
+    if (!connected) {
       if (isEmpty || _latestResponse.content == null) {
         if (!_emitOfflineFallback(_latestResponse)) {
           addResponse(

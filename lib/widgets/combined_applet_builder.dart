@@ -212,7 +212,7 @@ class _CombinedAppletBuilderState<T>
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Offline · ${snapshot.data?.fetchedAt.format('HH:mm')}',
+                            'Veraltet · ${snapshot.data?.fetchedAt.format('HH:mm')}',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -253,7 +253,7 @@ class _CombinedAppletBuilderState<T>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Offline – gespeicherte Daten',
+                                  'Veraltete Daten (offline)',
                                   style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
