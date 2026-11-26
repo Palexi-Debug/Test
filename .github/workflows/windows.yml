@@ -1,0 +1,28 @@
+name: Windows Test-App
+
+on:
+  push:
+    branches: [windows]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter config --enable-windows-desktop
+      - run: flutter create --platforms=windows --project-name lanis .
+      - run: flutter pub get
+      - run: dart run intl_utils:generate
+      - run: flutter build windows --release --dart-define=BUILD_ID=${{ github.run_number }}
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath Schulportal-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Schulportal-Windows
+          path: Schulportal-Windows.zip
