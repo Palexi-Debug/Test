@@ -8,8 +8,15 @@ on:
 jobs:
   windows:
     runs-on: windows-2022
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build-Nummer (Anzahl Commits)
+        shell: bash
+        run: echo "BUILD_ID=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -18,7 +25,7 @@ jobs:
       - run: flutter create --platforms=windows --project-name lanis .
       - run: flutter pub get
       - run: dart run intl_utils:generate
-      - run: flutter build windows --release --dart-define=BUILD_ID=${{ github.run_number }}
+      - run: flutter build windows --release --dart-define=BUILD_ID=${{ env.BUILD_ID }}
       - name: Zip
         shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath Schulportal-Windows.zip
@@ -26,3 +33,15 @@ jobs:
         with:
           name: Schulportal-Windows
           path: Schulportal-Windows.zip
+
+      - name: Als eigener Update-Kanal veröffentlichen (windows-N)
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="windows-${{ env.BUILD_ID }}"
+          F="Schulportal-Windows-build${{ env.BUILD_ID }}.zip"
+          cp Schulportal-Windows.zip "$F"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --title "windows ${{ env.BUILD_ID }}" --notes "Test-Build für windows"
+          gh release upload "$TAG" "$F" --clobber
