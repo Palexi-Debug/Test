@@ -8,8 +8,15 @@ on:
 jobs:
   macos:
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build-Nummer (Anzahl Commits)
+        shell: bash
+        run: echo "BUILD_ID=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -18,10 +25,22 @@ jobs:
       - run: flutter create --platforms=macos --project-name lanis .
       - run: flutter pub get
       - run: dart run intl_utils:generate
-      - run: flutter build macos --release --dart-define=BUILD_ID=${{ github.run_number }}
+      - run: flutter build macos --release --dart-define=BUILD_ID=${{ env.BUILD_ID }}
       - name: Zip
         run: cd build/macos/Build/Products/Release && ditto -c -k --keepParent *.app "$GITHUB_WORKSPACE/Schulportal-macOS.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: Schulportal-macOS
           path: Schulportal-macOS.zip
+
+      - name: Als eigener Update-Kanal veröffentlichen (macos-N)
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="macos-${{ env.BUILD_ID }}"
+          F="Schulportal-macOS-build${{ env.BUILD_ID }}.zip"
+          cp Schulportal-macOS.zip "$F"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --title "macos ${{ env.BUILD_ID }}" --notes "Test-Build für macos"
+          gh release upload "$TAG" "$F" --clobber
