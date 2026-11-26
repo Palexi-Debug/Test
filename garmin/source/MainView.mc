@@ -13,7 +13,7 @@ class MainView extends WatchUi.View {
     static var scrollTarget = 0.0;
     static var scrollMax = 0.0;
     static var scrollInit = false;
-    const ROW_H = 42;
+    static var ROW_H = 42;
     const PAGES = 4;
     const ACCENT = 0x7986CB;
     const AMBER = 0xFFC107;
