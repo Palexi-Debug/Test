@@ -18,3 +18,14 @@ Aktuell: Build 43 (v0.3.3). Versionsschema: Build 30 = 0.1.0, 40 = 0.2.0 (Zehner
 ## Offen / ungetestet
 - Login-Sync Handy->Uhr, Wear-Installation Build 38+, eigene Stunden auf der Uhr, Ausfall grau.
 - Garmin: siehe `garmin/HANDOFF.md`.
+
+## Stand 2026-11-26 (Update nach Build 55)
+
+- Offline-Start: `AuthController.bootstrap` geht bei Netz-/Portalfehler mit vorhandenem Cache in `AuthState.authenticatedOffline()` (normales Menü, Hinweis "veraltet"), Hintergrund-Retry alle 20 s.
+- Netz: Verbindungsprüfung 2 Versuche (12 s), Session-Timeouts 15 s/30 s, `AppletParser.fetchData` prüft vor "offline" einmal erneut.
+- Kacheln einzeln skalierbar (`dashboard-tile-sizes`: klein/breit/groß, Raster-Platzierung).
+- App-Sperre (`local_auth`, `lib/utils/app_lock.dart`, MainActivity = FlutterFragmentActivity).
+- Uhr: Seitenwechsel erst nach längerem Wischen, Einstellungen (Text, Vertretung im Plan), Updates getrennt `-arm64`/`-arm32` (wear.yml `--split-per-abi`, Updater wählt per `supportedAbis`).
+- Garmin 0.1.4: weiches Scrollen (Timer) im Heute-Plan, G/U im Titel (`wk`), Handy sendet Plan mit eingesetzten Vertretungen und nach Woche gefiltert.
+- Branches `windows`, `macos`, `ios`: nur Test-Workflows (flutter create --platforms, ohne Signatur); iOS-IPA unsigniert.
+- Offen: Debug-Menü zum Simulieren, Homescreen-Widget, Klausur-Erinnerung, Uhr-Zwischenspeicher vom Handy.
