@@ -15,6 +15,11 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create --platforms=ios --project-name lanis .
+      - name: Podfile anpassen (statische Frameworks, iOS 15)
+        run: |
+          sed -i '' "s/^# platform :ios.*/platform :ios, '15.0'/" ios/Podfile
+          sed -i '' "s/use_frameworks!/use_frameworks! :linkage => :static/" ios/Podfile
+          grep -n "platform :ios\|use_frameworks" ios/Podfile
       - run: flutter pub get
       - run: dart run intl_utils:generate
       - run: flutter build ios --release --no-codesign --dart-define=BUILD_ID=${{ github.run_number }}
