@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:watch_connectivity_garmin/watch_connectivity_garmin.dart';
+import 'package:lanis/applets/timetable/student/apply_substitutions.dart';
+import 'package:lanis/applets/timetable/student/timetable_week_selection.dart';
 import 'package:lanis/utils/logger.dart';
 
 /// ID der Garmin-App (steht in garmin/manifest.xml auf dem Branch "garmin").
@@ -97,9 +99,40 @@ Future<void> sendToGarminHeadless(ProviderContainer container) async {
   } catch (_) {}
 }
 
+bool _inWeekG(TimetableSubject l, String weekBadge) {
+  final b = (l.badge ?? '').trim();
+  if (TimeTableData.isHalfYearBadge(b)) {
+    return TimeTableData.halfYearActive(b, DateTime.now());
+  }
+  if (weekBadge.isEmpty || b.isEmpty) return true;
+  return weekBadge == b;
+}
+
+/// Plan der aktuellen G/U-Woche mit eingesetzten Vertretungen.
+List<TimetableDay>? _garminPlan(TimeTable? tt, SubstitutionPlan? sp) {
+  final raw = tt == null ? null : (tt.planForOwn ?? tt.planForAll);
+  if (raw == null || tt == null) return raw;
+  try {
+    final wb = (tt.weekBadge ?? '').trim();
+    final withSubs = applySubstitutions(
+      plan: raw,
+      hours: tt.hours ?? const <TimeTableRow>[],
+      subs: sp,
+      weekStart: timetableWeekStart(
+        DateTime.tryParse(tt.weekDate ?? '') ?? DateTime.now(),
+      ),
+    );
+    return withSubs
+        .map((d) => d.where((l) => _inWeekG(l, wb)).toList())
+        .toList();
+  } catch (_) {
+    return raw;
+  }
+}
+
 Future<String?> _sendData(TimeTable? tt, SubstitutionPlan? sp) async {
   try {
-    final plan = tt == null ? null : (tt.planForOwn ?? tt.planForAll);
+    final plan = _garminPlan(tt, sp);
     if (plan == null || plan.isEmpty) {
       return 'Öffne zuerst einmal den Stundenplan in der App, damit Daten da sind.';
     }
@@ -177,7 +210,12 @@ Future<String?> _sendData(TimeTable? tt, SubstitutionPlan? sp) async {
           'der Uhr öffnen und offen lassen, dann erneut senden. Auf der Uhr '
           'muss die neueste Version (Seite "Info") installiert sein.';
     }
-    await garmin.sendMessage({'lessons': lessonList, 'subs': subList});
+    final wk = (tt?.weekBadge ?? '').trim();
+    await garmin.sendMessage({
+      'lessons': lessonList,
+      'subs': subList,
+      'wk': wk.length <= 1 ? wk : '',
+    });
     logger.i('Garmin: ${lessonList.length} Stunden, ${subList.length} Vertretungen gesendet');
     return null;
   } catch (e) {
