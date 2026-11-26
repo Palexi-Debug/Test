@@ -20,6 +20,7 @@ const String _orderKey = 'dashboard-order';
 const String _hiddenKey = 'dashboard-hidden';
 const String _columnsKey = 'dashboard-columns';
 const String _sizeKey = 'dashboard-size';
+const String _tileSizesKey = 'dashboard-tile-sizes';
 const String _colorsKey = 'dashboard-colors';
 const String _namesKey = 'dashboard-names';
 const String _styleKey = 'dashboard-style'; // 0 bunt, 1 einfarbig
@@ -53,6 +54,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _size = 1; // 0 klein, 1 mittel, 2 groß
   bool _editing = false;
   Map<String, int> _colors = {};
+  Map<String, int> _tileSizes = {}; // 0 klein, 1 breit, 2 groß (je Kachel)
   Map<String, String> _names = {};
   int _style = 0;
   int _radius = 1;
@@ -74,6 +76,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           .map((k, v) => MapEntry(k as String, v as int));
       _names = (jsonDecode(settings.getString(_namesKey) ?? '{}') as Map)
           .map((k, v) => MapEntry(k as String, v as String));
+      _tileSizes =
+          (jsonDecode(settings.getString(_tileSizesKey) ?? '{}') as Map)
+              .map((k, v) => MapEntry(k as String, v as int));
     } catch (_) {}
     _style = int.tryParse(settings.getString(_styleKey) ?? '') ?? 0;
     _radius = int.tryParse(settings.getString(_radiusKey) ?? '') ?? 1;
@@ -106,6 +111,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     settings.setString(_sizeKey, _size.toString());
     settings.setString(_colorsKey, jsonEncode(_colors));
     settings.setString(_namesKey, jsonEncode(_names));
+    settings.setString(_tileSizesKey, jsonEncode(_tileSizes));
     settings.setString(_styleKey, _style.toString());
     settings.setString(_radiusKey, _radius.toString());
     settings.setString(_greetingKey, _greetingOn ? '1' : '0');
@@ -147,6 +153,34 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 });
                 _save();
               },
+            ),
+            const SizedBox(height: 16),
+            Text('Größe der Kachel', style: Theme.of(ctx).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            StatefulBuilder(
+              builder: (ctx, setSheet) => SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<int>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment<int>(value: 0, label: Text('Klein')),
+                    ButtonSegment<int>(value: 1, label: Text('Breit')),
+                    ButtonSegment<int>(value: 2, label: Text('Groß')),
+                  ],
+                  selected: {_tileSizes[tile.id] ?? 0},
+                  onSelectionChanged: (v) {
+                    setSheet(() {});
+                    setState(() {
+                      if (v.first == 0) {
+                        _tileSizes.remove(tile.id);
+                      } else {
+                        _tileSizes[tile.id] = v.first;
+                      }
+                    });
+                    _save();
+                  },
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             Text('Farbe', style: Theme.of(ctx).textTheme.labelLarge),
@@ -197,6 +231,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       _size = 1;
       _colors = {};
       _names = {};
+      _tileSizes = {};
       _style = 0;
       _radius = 1;
       _greetingOn = true;
@@ -404,8 +439,45 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               (width - 2 * padding - spacing * (columns - 1)) / columns;
           final cellHeight = cellWidth / aspect;
 
+          // Kacheln einzeln größenverstellbar: einfache Raster-Platzierung
+          // (klein 1x1, breit 2x1, groß 2x2), Lücken füllen sich automatisch.
+          final placed = <String, ({int r, int c, int w, int h})>{};
+          final occ = <List<bool>>[];
+          for (final id in shownIds) {
+            final sz = _tileSizes[id] ?? 0;
+            final w = (sz >= 1 ? 2 : 1).clamp(1, columns).toInt();
+            final h = sz == 2 ? 2 : 1;
+            var done = false;
+            for (var r = 0; !done; r++) {
+              for (var c = 0; c + w <= columns && !done; c++) {
+                var ok = true;
+                for (var rr = r; rr < r + h && ok; rr++) {
+                  for (var cc = c; cc < c + w; cc++) {
+                    if (rr < occ.length && occ[rr][cc]) {
+                      ok = false;
+                      break;
+                    }
+                  }
+                }
+                if (!ok) continue;
+                while (occ.length < r + h) {
+                  occ.add(List<bool>.filled(columns, false));
+                }
+                for (var rr = r; rr < r + h; rr++) {
+                  for (var cc = c; cc < c + w; cc++) {
+                    occ[rr][cc] = true;
+                  }
+                }
+                placed[id] = (r: r, c: c, w: w, h: h);
+                done = true;
+              }
+            }
+          }
+          final totalRows = occ.length;
+
           Widget cell(String id) {
             final data = byId[id]!;
+            final span = placed[id]!;
             var colors = _style == 1
                 ? palette[3]
                 : palette[ordered.indexOf(id) % palette.length];
@@ -433,7 +505,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               onEdit: () => _editTile(data),
               background: colors.$1,
               foreground: colors.$2,
-              wide: columns == 1,
+              wide: columns == 1 || span.w > 1,
               editing: _editing,
               hidden: _hidden.contains(id),
               onToggleHidden: () => _toggleHidden(id),
@@ -448,8 +520,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     data: id,
                     delay: const Duration(milliseconds: 150),
                     feedback: SizedBox(
-                      width: cellWidth,
-                      height: cellHeight,
+                      width: span.w * cellWidth + (span.w - 1) * spacing,
+                      height: span.h * cellHeight + (span.h - 1) * spacing,
                       child: Material(
                         type: MaterialType.transparency,
                         child: Opacity(opacity: 0.9, child: tile),
@@ -515,11 +587,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     curve: Curves.easeOutCubic,
                     height: shownIds.isEmpty
                         ? 0
-                        : ((shownIds.length + columns - 1) ~/ columns) *
-                                  cellHeight +
-                              (((shownIds.length + columns - 1) ~/ columns) -
-                                      1) *
-                                  spacing,
+                        : totalRows * cellHeight + (totalRows - 1) * spacing,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -528,10 +596,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                             key: ValueKey(shownIds[i]),
                             duration: const Duration(milliseconds: 350),
                             curve: Curves.easeInOutCubic,
-                            left: (i % columns) * (cellWidth + spacing),
-                            top: (i ~/ columns) * (cellHeight + spacing),
-                            width: cellWidth,
-                            height: cellHeight,
+                            left: placed[shownIds[i]]!.c * (cellWidth + spacing),
+                            top: placed[shownIds[i]]!.r * (cellHeight + spacing),
+                            width: placed[shownIds[i]]!.w * cellWidth +
+                                (placed[shownIds[i]]!.w - 1) * spacing,
+                            height: placed[shownIds[i]]!.h * cellHeight +
+                                (placed[shownIds[i]]!.h - 1) * spacing,
                             child: Entrance(index: i, child: cell(shownIds[i])),
                           ),
                       ],
@@ -556,7 +626,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Kachel gedrückt halten und verschieben. Tippen ändert Name und Farbe, das Auge blendet eine Kachel aus.',
+              'Kachel gedrückt halten und verschieben. Tippen ändert Name, Größe und Farbe, das Auge blendet eine Kachel aus.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),

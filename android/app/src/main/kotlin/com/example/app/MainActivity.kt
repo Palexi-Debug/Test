@@ -1,7 +1,7 @@
 package com.example.app
 
 import android.content.Intent
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.FileInputStream
@@ -10,7 +10,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 
-class MainActivity: FlutterActivity() {
+class MainActivity: FlutterFragmentActivity() {
     private val createFileCode = 1404
     private var filePath = ""
 

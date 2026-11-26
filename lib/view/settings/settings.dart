@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:lanis/generated/l10n.dart';
+import 'package:lanis/utils/app_lock.dart';
 import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/utils/responsive.dart';
 import 'package:lanis/utils/whats_new.dart';
@@ -228,6 +229,44 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
               await Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => const SyncSettingsPage(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      SettingsGroup(
+        tiles: [
+          SettingsTile(
+            icon: Icons.fingerprint_rounded,
+            show: () async => !WearMode.enabled,
+            title: (context) => 'App-Sperre',
+            subtitle: (context) async =>
+                'Fingerabdruck oder Geräte-PIN beim Öffnen der App',
+            screen: (context) async {
+              final container = ProviderScope.containerOf(context);
+              final settings = container.read(sharedOverAccountSettingsProvider);
+              final messenger = ScaffoldMessenger.of(context);
+              final on = settings.getString(appLockKey) == '1';
+              final ok = await authenticateDevice(
+                on ? 'App-Sperre ausschalten' : 'App-Sperre einschalten',
+              );
+              if (!ok) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Nicht bestätigt (oder keine Display-Sperre am Gerät eingerichtet).',
+                    ),
+                  ),
+                );
+                return;
+              }
+              settings.setString(appLockKey, on ? '0' : '1');
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    on ? 'App-Sperre ausgeschaltet' : 'App-Sperre eingeschaltet',
+                  ),
                 ),
               );
             },

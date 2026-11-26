@@ -5,6 +5,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:lanis/utils/app_lock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -212,13 +213,18 @@ class App extends ConsumerWidget {
           routerConfig: router,
           builder: (context, child) {
             final font = snapshot['look-font'] as double;
-            if (font == 1.0 || child == null) return child ?? const SizedBox();
+            if (child == null) return const SizedBox();
+            if (font == 1.0) return AppLockGate(child: child);
             final mq = MediaQuery.of(context);
-            return MediaQuery(
-              data: mq.copyWith(
-                textScaler: TextScaler.linear(mq.textScaler.scale(1.0) * font),
+            return AppLockGate(
+              child: MediaQuery(
+                data: mq.copyWith(
+                  textScaler: TextScaler.linear(
+                    mq.textScaler.scale(1.0) * font,
+                  ),
+                ),
+                child: child,
               ),
-              child: child,
             );
           },
           localizationsDelegates: const [
