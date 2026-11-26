@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:lanis/utils/logger.dart';
 
 /// Repo, in dem die Builds als GitHub-Releases veröffentlicht werden.
@@ -29,18 +30,39 @@ class UpdateCheck {
   const UpdateCheck(this.result, [this.info]);
 }
 
+/// Eigener Update-Kanal je Plattform. Android/Uhr nutzen weiter die Releases
+/// "build-N" (neuestes Release), Desktop hat eigene Tags (windows-N, macos-N).
+String? _desktopChannel() {
+  if (kIsWeb) return null;
+  if (Platform.isWindows) return 'windows';
+  if (Platform.isMacOS) return 'macos';
+  return null;
+}
+
 /// Fragt das neueste Release ab. Funktioniert nur, wenn das Repo öffentlich
 /// ist (oder die Releases sonst ohne Anmeldung erreichbar sind).
 Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
   try {
+    final channel = wear ? null : _desktopChannel();
     final response = await Dio().get(
-      'https://api.github.com/repos/$updateRepo/releases/latest',
+      channel == null
+          ? 'https://api.github.com/repos/$updateRepo/releases/latest'
+          : 'https://api.github.com/repos/$updateRepo/releases?per_page=30',
       options: Options(
         receiveTimeout: const Duration(seconds: 10),
         sendTimeout: const Duration(seconds: 10),
       ),
     );
-    final data = response.data;
+    var data = response.data;
+    if (channel != null && data is List) {
+      data = data.firstWhere(
+        (r) =>
+            r is Map &&
+            r['draft'] != true &&
+            (r['tag_name'] ?? '').toString().startsWith('$channel-'),
+        orElse: () => null,
+      );
+    }
     if (data is! Map) return const UpdateCheck(UpdateCheckResult.failed);
     final tag = (data['tag_name'] ?? '').toString();
     final build = int.tryParse(tag.replaceAll(RegExp(r'[^0-9]'), ''));
@@ -59,7 +81,9 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
       for (final a in assets) {
         final name = (a['name'] ?? '').toString();
         final isWear = name.toLowerCase().contains('wear');
-        if (!name.endsWith('.apk') || isWear != wear) continue;
+        if (!name.endsWith(channel == null ? '.apk' : '.zip') || isWear != wear) {
+          continue;
+        }
         // 1. Durchlauf: genau passende ABI; 2. Durchlauf: irgendeine Datei.
         if (pass && wear && want.isNotEmpty && !name.contains(want)) continue;
         apk = a['browser_download_url']?.toString();
@@ -111,6 +135,7 @@ Future<bool> isUpdateDownloaded(UpdateInfo info) async {
 /// Startet den Download im Hintergrund (oder hängt sich an einen laufenden
 /// an). Eine fertige Datei wird wiederverwendet. Gibt null bei Fehlschlag.
 Future<File?> prefetchUpdate(UpdateInfo info) {
+  if (_desktopChannel() != null) return Future<File?>.value(null);
   return _downloadJobs.putIfAbsent(info.build, () async {
     logger.i('Update: Download Build ${info.build} gestartet');
     final file = await _downloadApk(info);
@@ -181,6 +206,14 @@ Future<String?> downloadAndInstall(
   UpdateInfo info,
   void Function(double progress) onProgress,
 ) async {
+  if (_desktopChannel() != null) {
+    // Desktop: Download im Browser starten, Installation von Hand.
+    final ok = await launchUrl(
+      Uri.parse(info.apkUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    return ok ? null : 'Download-Seite konnte nicht geöffnet werden.';
+  }
   final notifier = updateProgressOf(info.build);
   void listener() => onProgress(notifier.value);
   notifier.addListener(listener);
