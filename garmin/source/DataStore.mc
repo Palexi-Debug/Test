@@ -5,10 +5,11 @@ import Toybox.System;
 // Aktuelle Daten. s/e = Start/Ende in Minuten seit 0 Uhr.
 module DataStore {
     // Muss zur version in manifest.xml passen.
-    const VERSION = "0.1.3";
+    const VERSION = "0.1.4";
 
     var live = false;
     var syncMin = -1;
+    var week = "";
     var msgCount = 0;
 
     var lessons = [
@@ -71,6 +72,10 @@ module DataStore {
             subs = cleanSubs(s);
             live = true;
         }
+        var wk = d["wk"];
+        if (wk instanceof String) {
+            week = wk;
+        }
         save();
     }
 
@@ -80,6 +85,7 @@ module DataStore {
             Application.Storage.setValue("lessons", lessons);
             Application.Storage.setValue("subs", subs);
             Application.Storage.setValue("syncMin", syncMin);
+            Application.Storage.setValue("week", week);
         } catch (e) {
         }
     }
@@ -92,6 +98,8 @@ module DataStore {
                 lessons = cleanLessons(l);
                 subs = cleanSubs(s);
                 syncMin = num(Application.Storage.getValue("syncMin"), -1);
+                var wk = Application.Storage.getValue("week");
+                if (wk instanceof String) { week = wk; }
                 live = true;
             }
         } catch (e) {

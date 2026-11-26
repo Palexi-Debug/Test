@@ -1,12 +1,19 @@
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
+import Toybox.Timer;
 import Toybox.WatchUi;
 
 // Seiten: 0 Jetzt, 1 Heute, 2 Vertretungen, 3 Info
 class MainView extends WatchUi.View {
 
     static var page = 0;
+    // Weiches Scrollen der Heute-Liste (Pixel)
+    static var scrollCur = 0.0;
+    static var scrollTarget = 0.0;
+    static var scrollMax = 0.0;
+    static var scrollInit = false;
+    const ROW_H = 42;
     const PAGES = 4;
     const ACCENT = 0x7986CB;
     const AMBER = 0xFFC107;
@@ -41,7 +48,11 @@ class MainView extends WatchUi.View {
 
         var titles = ["Jetzt", "Heute", "Vertretungen", "Info"];
         dc.setColor(ACCENT, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(w / 2, 10, Graphics.FONT_SMALL, titles[page], Graphics.TEXT_JUSTIFY_CENTER);
+        var title = titles[page];
+        if (page == 1 && DataStore.week.length() == 1) {
+            title = "Heute - " + DataStore.week + "-Woche";
+        }
+        dc.drawText(w / 2, 10, Graphics.FONT_SMALL, title, Graphics.TEXT_JUSTIFY_CENTER);
 
         var t = System.getClockTime();
         var now = t.hour * 60 + t.min;
@@ -138,15 +149,25 @@ class MainView extends WatchUi.View {
             dc.drawText(w / 2, h / 2, Graphics.FONT_MEDIUM, "Keine Stunden", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
             return;
         }
-        var start = 0;
-        for (var i = 0; i < size; i++) {
-            if (DataStore.lessons[i]["e"] > now) { start = i; break; }
+        var viewH = h - BOTTOM - TOP;
+        scrollMax = (size * rowH - viewH).toFloat();
+        if (scrollMax < 0) { scrollMax = 0.0; }
+        if (!scrollInit) {
+            var start = 0;
+            for (var i = 0; i < size; i++) {
+                if (DataStore.lessons[i]["e"] > now) { start = i; break; }
+            }
+            scrollCur = (start * rowH).toFloat();
+            if (scrollCur > scrollMax) { scrollCur = scrollMax; }
+            scrollTarget = scrollCur;
+            scrollInit = true;
         }
-        if (start + maxRows > size) { start = size - maxRows; }
-        if (start < 0) { start = 0; }
+        if (scrollCur > scrollMax) { scrollCur = scrollMax; scrollTarget = scrollMax; }
 
-        var y = TOP;
-        for (var i = start; i < size && i < start + maxRows; i++) {
+        dc.setClip(0, TOP, w, viewH);
+        for (var i = 0; i < size; i++) {
+            var y = TOP + i * rowH - scrollCur.toNumber();
+            if (y + rowH < TOP || y > h - BOTTOM) { continue; }
             var l = DataStore.lessons[i];
             var active = l["s"] <= now && now < l["e"];
             dc.setColor(active ? 0x283593 : CARD, Graphics.COLOR_TRANSPARENT);
@@ -160,11 +181,11 @@ class MainView extends WatchUi.View {
             var f = fit(dc, l["n"], w - 96 - roomW - 24, [Graphics.FONT_SMALL, Graphics.FONT_TINY, Graphics.FONT_XTINY]);
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
             dc.drawText(86, cy, f, l["n"], Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
-            y += rowH;
         }
-        if (start + maxRows < size) {
+        dc.clearClip();
+        if (scrollCur < scrollMax - 1) {
             dc.setColor(0x777777, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(w / 2, h - 24, Graphics.FONT_XTINY, "+" + (size - start - maxRows), Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(w / 2, h - 24, Graphics.FONT_XTINY, "v", Graphics.TEXT_JUSTIFY_CENTER);
         }
     }
 
@@ -244,17 +265,48 @@ class MainView extends WatchUi.View {
 
 class MainDelegate extends WatchUi.BehaviorDelegate {
 
+    var timer = new Timer.Timer();
+
     function initialize() {
         BehaviorDelegate.initialize();
     }
 
+    // Schritt der weichen Scroll-Animation
+    function tick() as Void {
+        var d = MainView.scrollTarget - MainView.scrollCur;
+        if (d < 1.0 && d > -1.0) {
+            MainView.scrollCur = MainView.scrollTarget;
+            timer.stop();
+        } else {
+            MainView.scrollCur = MainView.scrollCur + d * 0.3;
+        }
+        WatchUi.requestUpdate();
+    }
+
+    function scrollBy(px as Number) as Void {
+        var t = MainView.scrollTarget + px;
+        if (t < 0) { t = 0.0; }
+        if (t > MainView.scrollMax) { t = MainView.scrollMax; }
+        MainView.scrollTarget = t;
+        timer.stop();
+        timer.start(method(:tick), 33, true);
+    }
+
     function onNextPage() as Boolean {
+        if (MainView.page == 1 && MainView.scrollTarget < MainView.scrollMax - 1) {
+            scrollBy(MainView.ROW_H * 2);
+            return true;
+        }
         MainView.page = (MainView.page + 1) % 4;
         WatchUi.requestUpdate();
         return true;
     }
 
     function onPreviousPage() as Boolean {
+        if (MainView.page == 1 && MainView.scrollTarget > 1) {
+            scrollBy(-MainView.ROW_H * 2);
+            return true;
+        }
         MainView.page = (MainView.page + 3) % 4;
         WatchUi.requestUpdate();
         return true;
