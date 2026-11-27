@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:lanis/utils/watch_sync.dart';
 import 'package:lanis/utils/garmin_sync.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,6 +55,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _size = 1; // 0 klein, 1 mittel, 2 groß
   bool _editing = false;
   Map<String, int> _colors = {};
+  String? _previewId;
+  int _previewStep = 0;
   Map<String, int> _tileSizes = {}; // 0 klein, 1 breit, 2 groß (je Kachel)
   Map<String, String> _names = {};
   int _style = 0;
@@ -88,10 +91,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     });
     // Garmin-Uhr automatisch aktuell halten (nur wenn schon einmal gesendet)
     Future.delayed(const Duration(seconds: 8), () {
-      if (mounted) autoSyncGarmin(ref);
+      if (mounted) {
+        autoSyncGarmin(ref);
+        syncCacheToWatch(ref);
+      }
     });
     _garminTimer = Timer.periodic(const Duration(minutes: 10), (_) {
-      if (mounted) autoSyncGarmin(ref);
+      if (mounted) {
+        autoSyncGarmin(ref);
+        syncCacheToWatch(ref);
+      }
     });
   }
 
@@ -511,6 +520,44 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               onToggleHidden: () => _toggleHidden(id),
             );
             if (!_editing) return tile;
+            // Zieh-Stück unten rechts: ziehen vergrößert/verkleinert die Kachel.
+            final tileEditable = Stack(
+              children: [
+                Positioned.fill(child: tile),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: _ResizeHandle(
+                    unit: cellWidth * 0.5,
+                    onPreview: (step) {
+                      if (step == null) {
+                        if (_previewId != null) {
+                          setState(() => _previewId = null);
+                        }
+                      } else if (_previewId != id || _previewStep != step) {
+                        setState(() {
+                          _previewId = id;
+                          _previewStep = step;
+                        });
+                      }
+                    },
+                    onStep: (step) {
+                      final cur = _tileSizes[id] ?? 0;
+                      final next = (cur + step).clamp(0, 2).toInt();
+                      if (next == cur) return;
+                      setState(() {
+                        if (next == 0) {
+                          _tileSizes.remove(id);
+                        } else {
+                          _tileSizes[id] = next;
+                        }
+                      });
+                      _save();
+                    },
+                  ),
+                ),
+              ],
+            );
             return DragTarget<String>(
               onWillAcceptWithDetails: (details) => details.data != id,
               onAcceptWithDetails: (details) =>
@@ -536,7 +583,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                             ? Border.all(color: scheme.primary, width: 3)
                             : null,
                       ),
-                      child: tile,
+                      child: tileEditable,
                     ),
                   ),
             );
@@ -603,6 +650,45 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                             height: placed[shownIds[i]]!.h * cellHeight +
                                 (placed[shownIds[i]]!.h - 1) * spacing,
                             child: Entrance(index: i, child: cell(shownIds[i])),
+                          ),
+                        // Vorschau-Umrandung: so groß wird die Kachel.
+                        if (_editing &&
+                            _previewId != null &&
+                            placed.containsKey(_previewId))
+                          Builder(
+                            builder: (context) {
+                              final pl = placed[_previewId]!;
+                              final target =
+                                  ((_tileSizes[_previewId] ?? 0) + _previewStep)
+                                      .clamp(0, 2)
+                                      .toInt();
+                              final tw = (target >= 1 ? 2 : 1)
+                                  .clamp(1, columns)
+                                  .toInt();
+                              final th = target == 2 ? 2 : 1;
+                              return Positioned(
+                                left: pl.c * (cellWidth + spacing),
+                                top: pl.r * (cellHeight + spacing),
+                                width: tw * cellWidth + (tw - 1) * spacing,
+                                height: th * cellHeight + (th - 1) * spacing,
+                                child: IgnorePointer(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: scheme.primary.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      border: Border.all(
+                                        color: scheme.primary,
+                                        width: 3,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        const [12.0, 24.0, 34.0][_radius],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                       ],
                     ),
@@ -874,6 +960,64 @@ class _FitLabel extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+
+/// Zieh-Stück zum Vergrößern/Verkleinern einer Kachel (Bearbeiten-Modus).
+class _ResizeHandle extends StatefulWidget {
+  final double unit;
+  final ValueChanged<int> onStep;
+  final ValueChanged<int?> onPreview;
+  const _ResizeHandle({
+    required this.unit,
+    required this.onStep,
+    required this.onPreview,
+  });
+
+  @override
+  State<_ResizeHandle> createState() => _ResizeHandleState();
+}
+
+class _ResizeHandleState extends State<_ResizeHandle> {
+  double _drag = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanUpdate: (d) {
+        _drag += d.delta.dx + d.delta.dy;
+        widget.onPreview(
+          _drag > widget.unit ? 1 : (_drag < -widget.unit ? -1 : 0),
+        );
+      },
+      onPanEnd: (_) {
+        widget.onPreview(null);
+        if (_drag > widget.unit) {
+          widget.onStep(1);
+        } else if (_drag < -widget.unit) {
+          widget.onStep(-1);
+        }
+        _drag = 0;
+      },
+      onPanCancel: () {
+        _drag = 0;
+        widget.onPreview(null);
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: scheme.surface.withValues(alpha: 0.75),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.open_in_full_rounded, size: 16, color: scheme.primary),
+        ),
+      ),
     );
   }
 }

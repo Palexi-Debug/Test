@@ -31,6 +31,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     with WidgetsBindingObserver {
   bool _locked = false;
   bool _busy = false;
+  DateTime? _pausedAt;
 
   bool get _enabled {
     if (WearMode.enabled) return false;
@@ -61,10 +62,18 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_busy) return;
-    if (state == AppLifecycleState.paused && _enabled) {
-      setState(() => _locked = true);
-    } else if (state == AppLifecycleState.resumed && _locked) {
-      _unlock();
+    if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      // Kurze Unterbrechungen (Teilen-Dialog, Dateiauswahl) sperren nicht.
+      final away = _pausedAt == null
+          ? Duration.zero
+          : DateTime.now().difference(_pausedAt!);
+      _pausedAt = null;
+      if (!_locked && _enabled && away > const Duration(seconds: 30)) {
+        setState(() => _locked = true);
+      }
+      if (_locked) _unlock();
     }
   }
 

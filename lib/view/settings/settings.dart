@@ -238,6 +238,34 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
       SettingsGroup(
         tiles: [
           SettingsTile(
+            icon: Icons.swap_horiz_rounded,
+            show: () async => !WearMode.enabled,
+            title: (context) => 'Vertretungen im Stundenplan',
+            subtitle: (context) async =>
+                ProviderScope.containerOf(context)
+                        .read(sharedOverAccountSettingsProvider)
+                        .getString('tt-subs-in-plan') ==
+                    '0'
+                ? 'Aus – der Stundenplan zeigt nur den normalen Plan'
+                : 'An – geänderte Stunden werden direkt eingesetzt (tippen zum Ändern)',
+            screen: (context) async {
+              final settings = ProviderScope.containerOf(
+                context,
+              ).read(sharedOverAccountSettingsProvider);
+              final on = settings.getString('tt-subs-in-plan') != '0';
+              settings.setString('tt-subs-in-plan', on ? '0' : '1');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    on
+                        ? 'Vertretungen im Stundenplan ausgeschaltet'
+                        : 'Vertretungen im Stundenplan eingeschaltet',
+                  ),
+                ),
+              );
+            },
+          ),
+          SettingsTile(
             icon: Icons.fingerprint_rounded,
             show: () async => !WearMode.enabled,
             title: (context) => 'App-Sperre',

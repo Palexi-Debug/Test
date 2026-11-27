@@ -160,7 +160,11 @@ class _StudentTimetableBetterViewState
 
             // Vertretungen (Ersatz, Verlegung, Raumwechsel) in die aktuelle Woche
             // einsetzen; Ausfälle zeigt der Plan weiterhin durchsichtig.
-            if (weekSelection.mode == TimetableWeekMode.current) {
+            if (weekSelection.mode == TimetableWeekMode.current &&
+                ref
+                        .read(sharedOverAccountSettingsProvider)
+                        .getString('tt-subs-in-plan') !=
+                    '0') {
               try {
                 final sp =
                     (ref.read(substitutionsParserProvider) as dynamic)
