@@ -150,6 +150,10 @@ class AppletParser<T> {
     bool forceRefresh = false,
     bool secondTry = false,
   }) async {
+    // Gespeicherte Daten sofort zeigen (veraltet), während geprüft/geladen wird.
+    if (_latestResponse.content == null && appletMeta.allowOffline) {
+      _emitOfflineFallback(_latestResponse);
+    }
     var connected = await isConnected();
     if (!connected && !secondTry) {
       // Schlechtes Netz: kurz warten und einmal erneut prüfen, bevor "offline".
@@ -249,11 +253,28 @@ class AppletParser<T> {
   Future<T> _getHome() async {
     final T value = await getHome();
     if (appletMeta.allowOffline) {
-      ctx.database.setAppletOfflineData(
-        accountId: ctx.accountId,
-        appletId: appletMeta.appletPhpUrl,
-        json: jsonEncode(value),
-      );
+      final newJson = jsonEncode(value);
+      // Ein plötzlich fast leerer Plan (schlechtes Netz) überschreibt keinen
+      // guten Cache.
+      var keepOld = false;
+      try {
+        final old = ctx.database.getAppletOfflineData(
+          accountId: ctx.accountId,
+          appletId: appletMeta.appletPhpUrl,
+        );
+        if (old != null &&
+            old.json.length > 800 &&
+            newJson.length < old.json.length * 0.25) {
+          keepOld = true;
+        }
+      } catch (_) {}
+      if (!keepOld) {
+        ctx.database.setAppletOfflineData(
+          accountId: ctx.accountId,
+          appletId: appletMeta.appletPhpUrl,
+          json: newJson,
+        );
+      }
     }
     return value;
   }
