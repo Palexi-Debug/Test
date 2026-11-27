@@ -194,6 +194,7 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
 
+    _offlineRetry?.cancel();
     _authDrivenExternally = true;
     final previousId = ref.read(activeAccountProvider)?.localId;
     state = const AuthState.authenticating();
@@ -244,6 +245,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    _offlineRetry?.cancel();
     await _deauthenticate();
     await ref
         .read(activeAccountProvider.notifier)
@@ -253,6 +255,7 @@ class AuthController extends Notifier<AuthState> {
 
   /// Remove an account; bootstrap another if any remain, else log out.
   Future<void> removeAccountAndContinue(int accountId) async {
+    _offlineRetry?.cancel();
     final wasActive = ref.read(activeAccountProvider)?.localId == accountId;
     if (wasActive) {
       _authDrivenExternally = true;
