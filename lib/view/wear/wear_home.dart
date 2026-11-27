@@ -47,6 +47,13 @@ class _WearHomeState extends ConsumerState<WearHome> {
       m,
       ref.read(accountSpecificSettingsProvider),
     );
+    try {
+      applyCacheFromPhone(
+        m,
+        ref.read(lanisDatabaseProvider),
+        ref.read(activeAccountProvider)?.localId,
+      );
+    } catch (_) {}
     if (ok && mounted) setState(() => _ttRev++);
   }
 
