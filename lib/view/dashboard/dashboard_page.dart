@@ -916,17 +916,7 @@ class _TileCard extends StatelessWidget {
           Positioned.fill(
             child: Material(
               color: background,
-              // Im Bearbeiten-Modus hat jede Kachel eine grüne Umrandung (passend
-              // zum Zieh-Pfeil), damit klar ist, wie groß sie ist.
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(radius),
-                side: editing
-                    ? BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      )
-                    : BorderSide.none,
-              ),
+              borderRadius: BorderRadius.circular(radius),
               child: InkWell(
                 borderRadius: BorderRadius.circular(radius),
                 onTap: editing ? onEdit : data.onTap,
@@ -1045,6 +1035,8 @@ class _ResizeHandleState extends State<_ResizeHandle> {
           _delta = Offset.zero;
           _active = true;
           _last = widget.start;
+          // Umrandung erscheint sofort, solange der Pfeil gedrückt ist.
+          widget.onPreview(widget.start);
         },
         onPointerMove: (e) {
           if (!_active) return;

@@ -11,7 +11,7 @@ Branches/Kanäle: siehe README. Ungetestet auf Geräten, sofern nicht anders ver
 - Uhr-Sync: `lib/utils/watch_sync.dart` (Wear OS), `garmin_sync.dart` (Garmin, Payload mit Vertretungen + Woche `wk`).
 
 ## UI-Struktur
-- Startseite: `lib/view/dashboard/` – Raster-Modell in `dashboard_layout.dart` (Größe je Kachel Breite×Höhe, gespeichert in `dashboard-tile-spans`; altes `dashboard-tile-sizes` wird migriert). Zieh-Stück liegt über den Kacheln (`_ResizeHandle`, Eager-Gesten, kein Scrollen beim Ziehen), im Bearbeiten-Modus grüne Umrandung je Kachel, Layout-Menü per "Layout"-Knopf.
+- Startseite: `lib/view/dashboard/` – Raster-Modell in `dashboard_layout.dart` (Größe je Kachel Breite×Höhe, gespeichert in `dashboard-tile-spans`; altes `dashboard-tile-sizes` wird migriert). Zieh-Stück liegt über den Kacheln (`_ResizeHandle`, Eager-Gesten, kein Scrollen beim Ziehen), grüne Umrandung der Kachel nur, solange der Zieh-Pfeil gedrückt ist, Layout-Menü per "Layout"-Knopf.
 - Einstellungen: `lib/view/settings/settings.dart`, Gruppen Darstellung / Bereiche / Geräte & Sicherheit / Speicher & App. Eigene Seite Vertretungsplan: `applets/substitutions/substitutions_settings.dart` (Vertretungen im Stundenplan, Ausfall grau, Filter).
 - Gemeinsame Bausteine: `lib/widgets/settings_widgets.dart` (Abschnittstitel, Schalter, Auswahlleiste).
 - Aussehen: Navigationsleiste wird direkt in der Vorschau per Halten+Ziehen sortiert (`AnimatedBottomBar.onReorder`). Einstellung "Animationen" (Aus/Dezent/Lebendig) steuert Übergänge, Leiste und Logo (`AppLook`).

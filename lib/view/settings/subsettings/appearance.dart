@@ -365,7 +365,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
 
   /// Einstellungen der unteren Leiste, oben IN der Vorschau (nutzt deren Stil).
   Widget _navControls(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -374,15 +373,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
               title: const Text('Beschriftung der Leiste'),
               value: _labels,
               onChanged: (v) => _set('nav-labels', v ? '1' : '0'),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                'Reihenfolge ändern: unten in der Leiste einen Eintrag gedrückt halten und verschieben.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
             ),
           ],
     );
@@ -728,6 +718,24 @@ class _Preview extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onReorder != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                      child: Row(
+                        children: [
+                          Icon(Icons.open_with_rounded, size: 16, color: cs.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Einträge der Leiste gedrückt halten und verschieben',
+                              style: text.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   // Genau die echte Leiste (gleiche Optik, Animation, Namen, Icons).
                   MediaQuery.removePadding(
                     context: ctx,
