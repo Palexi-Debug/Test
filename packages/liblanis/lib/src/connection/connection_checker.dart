@@ -38,9 +38,13 @@ class ConnectionChecker {
     lastRequest = DateTime.now();
   }
 
+  /// Nur zum Testen (Debug-Menü): tut so, als gäbe es kein Netz.
+  static bool forceOffline = false;
+
   ConnectionStatus get status => _status;
 
   Future<bool> get connected async {
+    if (forceOffline) return false;
     if (DateTime.now().difference(lastRequest) > const Duration(seconds: 1)) {
       await testConnection();
     }
