@@ -511,6 +511,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               onToggleHidden: () => _toggleHidden(id),
             );
             if (!_editing) return tile;
+            // Zieh-Stück unten rechts: ziehen vergrößert/verkleinert die Kachel.
+            final tileEditable = Stack(
+              children: [
+                Positioned.fill(child: tile),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: _ResizeHandle(
+                    unit: cellWidth * 0.5,
+                    onStep: (step) {
+                      final cur = _tileSizes[id] ?? 0;
+                      final next = (cur + step).clamp(0, 2).toInt();
+                      if (next == cur) return;
+                      setState(() {
+                        if (next == 0) {
+                          _tileSizes.remove(id);
+                        } else {
+                          _tileSizes[id] = next;
+                        }
+                      });
+                      _save();
+                    },
+                  ),
+                ),
+              ],
+            );
             return DragTarget<String>(
               onWillAcceptWithDetails: (details) => details.data != id,
               onAcceptWithDetails: (details) =>
@@ -536,7 +562,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                             ? Border.all(color: scheme.primary, width: 3)
                             : null,
                       ),
-                      child: tile,
+                      child: tileEditable,
                     ),
                   ),
             );
@@ -874,6 +900,50 @@ class _FitLabel extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+
+/// Zieh-Stück zum Vergrößern/Verkleinern einer Kachel (Bearbeiten-Modus).
+class _ResizeHandle extends StatefulWidget {
+  final double unit;
+  final ValueChanged<int> onStep;
+  const _ResizeHandle({required this.unit, required this.onStep});
+
+  @override
+  State<_ResizeHandle> createState() => _ResizeHandleState();
+}
+
+class _ResizeHandleState extends State<_ResizeHandle> {
+  double _drag = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanUpdate: (d) => _drag += d.delta.dx + d.delta.dy,
+      onPanEnd: (_) {
+        if (_drag > widget.unit) {
+          widget.onStep(1);
+        } else if (_drag < -widget.unit) {
+          widget.onStep(-1);
+        }
+        _drag = 0;
+      },
+      onPanCancel: () => _drag = 0,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: scheme.surface.withValues(alpha: 0.75),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.open_in_full_rounded, size: 16, color: scheme.primary),
+        ),
+      ),
     );
   }
 }

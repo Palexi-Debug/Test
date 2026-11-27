@@ -31,6 +31,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
   int _page = 0;
   UpdateInfo? _update;
   double _overscrollSum = 0;
+  bool _startedAtEdge = false;
   bool _switching = false;
   double _font = 1.0; // Textgröße der Uhr (Einstellung)
 
@@ -112,13 +113,24 @@ class _WearHomeState extends ConsumerState<WearHome> {
                 }
                 // Erst nach längerem Wischen am Listenende die Seite wechseln
                 // (entspannteres Scrollen statt sofortigem Umschalten).
-                if (n is ScrollStartNotification ||
-                    n is ScrollEndNotification) {
+                if (n is ScrollStartNotification) {
                   _overscrollSum = 0;
+                  _startedAtEdge =
+                      n.metrics.pixels <= n.metrics.minScrollExtent + 1 ||
+                      n.metrics.pixels >= n.metrics.maxScrollExtent - 1;
                 }
-                if (n is OverscrollNotification && !_switching) {
+                if (n is ScrollEndNotification) {
+                  _overscrollSum = 0;
+                  _startedAtEdge = false;
+                }
+                // Nur wenn der Finger schon am Rand angesetzt hat (kein
+                // versehentliches Weiterblättern durch Schwung).
+                if (n is OverscrollNotification &&
+                    !_switching &&
+                    _startedAtEdge &&
+                    n.dragDetails != null) {
                   _overscrollSum += n.overscroll;
-                  if (_overscrollSum.abs() > 70) {
+                  if (_overscrollSum.abs() > 120) {
                     final back = _overscrollSum < 0;
                     _overscrollSum = 0;
                     _switching = true;
@@ -621,7 +633,12 @@ class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return LayoutBuilder(
+      builder: (context, cons) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: cons.maxHeight - 56),
+          child: Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
@@ -656,7 +673,7 @@ class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
             else
               FilledButton.tonal(
                 onPressed: _busy ? null : _check,
-                child: const Text('Nach Update suchen'),
+                child: const FittedBox(child: Text('Nach Update suchen')),
               ),
             const SizedBox(height: 6),
             Wrap(
@@ -696,6 +713,9 @@ class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
           ],
         ),
       ),
+    ),
+  ),
+  ),
     );
   }
 }
