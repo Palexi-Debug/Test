@@ -2,6 +2,8 @@ name: Build Wear OS APK
 
 on:
   push:
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 jobs:
