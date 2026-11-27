@@ -1,4 +1,4 @@
-name: iOS Test-App
+name: iOS App (SwiftUI)
 
 on:
   push:
@@ -8,28 +8,41 @@ on:
 jobs:
   ios:
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          cache: true
-      - run: flutter create --platforms=ios --project-name lanis .
-      - run: flutter pub get
-      - run: dart run intl_utils:generate
-      - name: Podfile erzeugen und anpassen (statische Frameworks, iOS 15)
+          fetch-depth: 0
+      - name: Build-Nummer (Anzahl Commits)
+        run: echo "BUILD_ID=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+      - name: Projekt erzeugen
         run: |
-          flutter build ios --config-only --no-codesign || true
-          sed -i '' "s/^# platform :ios.*/platform :ios, '15.0'/" ios/Podfile
-          sed -i '' "s/use_frameworks!/use_frameworks! :linkage => :static/" ios/Podfile
-          grep -n "platform :ios\|use_frameworks" ios/Podfile
-      - run: flutter build ios --release --no-codesign --dart-define=BUILD_ID=${{ github.run_number }}
-      - name: Unsigniertes IPA (iPhone + iPad) bauen
+          brew install xcodegen
+          cd ios-swift && xcodegen generate
+      - name: Bauen (ohne Signatur)
         run: |
-          mkdir Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qry Schulportal-iOS-unsigned.ipa Payload
+          cd ios-swift
+          xcodebuild -project Schulportal.xcodeproj -scheme Schulportal -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" CURRENT_PROJECT_VERSION=${{ env.BUILD_ID }} build
+      - name: Unsigniertes IPA (iPhone + iPad)
+        run: |
+          cd ios-swift
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Schulportal.app Payload/
+          zip -qry ../Schulportal-iOS-build${{ env.BUILD_ID }}.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
           name: Schulportal-iOS-unsigned
-          path: Schulportal-iOS-unsigned.ipa
+          path: Schulportal-iOS-build${{ env.BUILD_ID }}.ipa
+      - name: Als eigener Update-Kanal veröffentlichen (ios-N)
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="ios-${{ env.BUILD_ID }}"
+          F="Schulportal-iOS-build${{ env.BUILD_ID }}.ipa"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --title "iOS ${{ env.BUILD_ID }}" --notes "Native SwiftUI-App (unsigniert, iPhone + iPad). Per AltStore/Sideloadly installieren."
+          gh release upload "$TAG" "$F" --clobber

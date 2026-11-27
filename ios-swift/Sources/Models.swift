@@ -1,6 +1,6 @@
 import Foundation
 
-struct Lesson: Codable, Hashable {
+struct Lesson: Codable, Hashable, Identifiable {
     var id: String
     var name: String
     var room: String
@@ -10,9 +10,6 @@ struct Lesson: Codable, Hashable {
     var endMin: Int
     var row: Int
     var duration: Int
-    var cancelled: Bool = false
-    var substituted: Bool = false
-    var note: String = ""
 }
 
 struct HourRow: Codable, Hashable {
@@ -23,13 +20,15 @@ struct HourRow: Codable, Hashable {
 }
 
 struct Timetable: Codable {
-    var plan: [[Lesson]]
+    var all: [[Lesson]]
+    var own: [[Lesson]]?
     var rows: [HourRow]
     var weekBadge: String
     var weekDate: String?   // Montag der angezeigten Woche (yyyy-MM-dd)
 }
 
-struct Substitution: Codable, Hashable {
+struct Substitution: Codable, Hashable, Identifiable {
+    var id: String { "\(date)-\(hoursText)-\(fach)-\(klasse)-\(raum)-\(vertreter)-\(art)" }
     var date: String        // dd.MM.yyyy
     var hours: [Int]
     var hoursText: String
@@ -42,6 +41,16 @@ struct Substitution: Codable, Hashable {
     var klasse: String
     var art: String
     var hinweis: String
+
+    /// Gleiche Erkennung wie in der Android-App.
+    var isCancel: Bool {
+        let t = [art, hinweis].joined(separator: " ").lowercased()
+            .replacingOccurrences(of: "ä", with: "ae")
+            .replacingOccurrences(of: "ö", with: "oe")
+            .replacingOccurrences(of: "ü", with: "ue")
+        return ["entf", "ausfall", "freisetz", "faellt aus", "faellt ersatzlos",
+                "faellt weg", "unterrichtsfrei"].contains { t.contains($0) }
+    }
 }
 
 struct Credentials: Codable {
