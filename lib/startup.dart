@@ -1,5 +1,6 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:lanis/utils/login_errors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lanis/widgets/book_logo.dart';
 import 'package:lanis/utils/version_label.dart';
@@ -209,7 +210,15 @@ class StartupAuthErrorContent extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Center(child: Text(title)),
-            if (!isOffline && !isDown)
+            if (friendlyLoginError(exception) != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  friendlyLoginError(exception)!,
+                  textAlign: TextAlign.center,
+                ),
+              )
+            else if (!isOffline && !isDown)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 child: Text.rich(

@@ -227,6 +227,9 @@ class TimeTableData {
   late final String? weekBadge;
   List<TimetableDay> timetableDays = [];
 
+  /// Wochentag (0 = Montag) zu jedem Eintrag in [timetableDays].
+  List<int> weekdayIndices = [];
+
   /// "1. Hj." / "2. Hj." ist eine Halbjahr-Markierung, keine Woche (G/U).
   static bool isHalfYearBadge(String? badge) =>
       badge != null && RegExp(r'^\s*\d\.?\s*Hj', caseSensitive: false).hasMatch(badge);
@@ -282,6 +285,7 @@ class TimeTableData {
     }
 
     List<dynamic>? hiddenLessons = settings['hidden-lessons'];
+    final filteredDays = <List<TimetableSubject>>[];
     for (var day in data) {
       List<TimetableSubject> dayData = [];
       for (var subject in day) {
@@ -290,12 +294,29 @@ class TimeTableData {
           dayData.add(subject);
         }
       }
-      timetableDays.add(dayData);
+      filteredDays.add(dayData);
     }
 
-    timetableDays = timetableDays
-        .where((TimetableDay day) => day.isNotEmpty)
-        .toList();
+    if (filteredDays.every((d) => d.isEmpty)) {
+      timetableDays = [];
+      weekdayIndices = [];
+      return;
+    }
+
+    // Montag bis Freitag bleiben auch ohne Stunden erhalten, damit die Spalten
+    // nicht verrutschen (Index == Wochentag). Leere Wochenendtage entfallen,
+    // der Samstag bleibt nur, wenn der Sonntag Stunden hat.
+    final sundayHasLessons = filteredDays.length > 6 && filteredDays[6].isNotEmpty;
+    for (var i = 0; i < filteredDays.length; i++) {
+      final keep =
+          i < 5 ||
+          filteredDays[i].isNotEmpty ||
+          (i == 5 && sundayHasLessons);
+      if (keep) {
+        timetableDays.add(filteredDays[i]);
+        weekdayIndices.add(i);
+      }
+    }
   }
 }
 

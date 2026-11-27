@@ -822,6 +822,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       ),
     );
   }
+}
 
 class _TileData {
   final String id;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/utils/theme_settings.dart';
 import 'package:lanis/view/settings/settings_page_builder.dart';
 import 'package:lanis/widgets/press_tile.dart';
