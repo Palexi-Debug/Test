@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:lanis/bridge/login_telemetry.dart';
+import 'package:lanis/utils/login_errors.dart';
 import 'package:lanis/utils/privacy_policy.dart';
 
 enum AuthPhase { unauthenticated, authenticating, authenticated, error }
@@ -168,6 +169,10 @@ class AuthController extends Notifier<AuthState> {
     } on CredentialsIncompleteException catch (e) {
       state = AuthState.error(e);
     } on LanisException catch (e) {
+      if (isAccountProblem(e)) {
+        state = AuthState.error(e);
+        return;
+      }
       // Kein Netz / Portal down / Zeitüberschreitung: mit gespeicherten Daten
       // normal weiterarbeiten (veraltet), statt nur eine Fehlerseite zu zeigen.
       if (_hasOfflineData()) {
@@ -194,6 +199,7 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
 
+    _offlineRetry?.cancel();
     _authDrivenExternally = true;
     final previousId = ref.read(activeAccountProvider)?.localId;
     state = const AuthState.authenticating();
@@ -244,6 +250,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    _offlineRetry?.cancel();
     await _deauthenticate();
     await ref
         .read(activeAccountProvider.notifier)
@@ -253,6 +260,7 @@ class AuthController extends Notifier<AuthState> {
 
   /// Remove an account; bootstrap another if any remain, else log out.
   Future<void> removeAccountAndContinue(int accountId) async {
+    _offlineRetry?.cancel();
     final wasActive = ref.read(activeAccountProvider)?.localId == accountId;
     if (wasActive) {
       _authDrivenExternally = true;

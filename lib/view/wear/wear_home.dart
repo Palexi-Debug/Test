@@ -27,10 +27,18 @@ class WearHome extends ConsumerStatefulWidget {
 }
 
 class _WearHomeState extends ConsumerState<WearHome> {
-  final PageController _pages = PageController();
+  late PageController _pages;
   int _page = 0;
+  double _scroll = 1.6; // Scroll-Tempo (Einstellung)
+  bool _animOn = true; // Animationen (Einstellung)
+  double _animSpeed = 1.0; // Animations-Tempo (Einstellung)
+
+  Duration _ad(int ms) => _animOn
+      ? Duration(milliseconds: (ms / _animSpeed).round().clamp(1, 4000).toInt())
+      : Duration.zero;
   UpdateInfo? _update;
   double _overscrollSum = 0;
+  bool _startedAtEdge = false;
   bool _switching = false;
   double _font = 1.0; // Textgröße der Uhr (Einstellung)
 
@@ -45,7 +53,25 @@ class _WearHomeState extends ConsumerState<WearHome> {
       m,
       ref.read(accountSpecificSettingsProvider),
     );
+    try {
+      applyCacheFromPhone(
+        m,
+        ref.read(lanisDatabaseProvider),
+        ref.read(activeAccountProvider)?.localId,
+      );
+    } catch (_) {}
     if (ok && mounted) setState(() => _ttRev++);
+  }
+
+  void _loadSettings() {
+    final st = ref.read(sharedOverAccountSettingsProvider);
+    _font = double.tryParse(st.getString('wear-font') ?? '') ?? 1.0;
+    _scroll = double.tryParse(st.getString('wear-scroll') ?? '') ?? 1.6;
+    _animOn = st.getString('wear-anim') != '0';
+    _animSpeed = double.tryParse(st.getString('wear-anim-speed') ?? '') ?? 1.0;
+    _page = (int.tryParse(st.getString('wear-start-page') ?? '') ?? 0)
+        .clamp(0, _count - 1)
+        .toInt();
   }
 
   @override
@@ -58,11 +84,8 @@ class _WearHomeState extends ConsumerState<WearHome> {
         _onPhoneData(m);
       }
     }).catchError((_) {});
-    _font = double.tryParse(
-          ref.read(sharedOverAccountSettingsProvider).getString('wear-font') ??
-              '',
-        ) ??
-        1.0;
+    _loadSettings();
+    _pages = PageController(initialPage: _page);
     checkForUpdate(wear: true).then((r) {
       if (r.result == UpdateCheckResult.newer) {
         // Im Hintergrund vorladen, damit "Installieren" sofort startet.
@@ -87,7 +110,11 @@ class _WearHomeState extends ConsumerState<WearHome> {
       seedColor: Colors.indigo,
       brightness: Brightness.dark,
     );
-    return MediaQuery(
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(
+        context,
+      ).copyWith(physics: _WearScrollPhysics(factor: _scroll)),
+      child: MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaler: TextScaler.linear(_font),
       ),
@@ -112,17 +139,27 @@ class _WearHomeState extends ConsumerState<WearHome> {
                 }
                 // Erst nach längerem Wischen am Listenende die Seite wechseln
                 // (entspannteres Scrollen statt sofortigem Umschalten).
-                if (n is ScrollStartNotification ||
-                    n is ScrollEndNotification) {
+                if (n is ScrollStartNotification) {
                   _overscrollSum = 0;
+                  _startedAtEdge =
+                      n.metrics.pixels <= n.metrics.minScrollExtent + 1 ||
+                      n.metrics.pixels >= n.metrics.maxScrollExtent - 1;
                 }
-                if (n is OverscrollNotification && !_switching) {
+                if (n is ScrollEndNotification) {
+                  _overscrollSum = 0;
+                  _startedAtEdge = false;
+                }
+                // Nur wenn der Finger schon am Rand angesetzt hat (kein
+                // versehentliches Weiterblättern durch Schwung).
+                if (n is OverscrollNotification &&
+                    !_switching &&
+                    n.dragDetails != null) {
                   _overscrollSum += n.overscroll;
-                  if (_overscrollSum.abs() > 70) {
+                  if (_overscrollSum.abs() > 50) {
                     final back = _overscrollSum < 0;
                     _overscrollSum = 0;
                     _switching = true;
-                    const d = Duration(milliseconds: 450);
+                    final d = _ad(450);
                     if (back) {
                       _pages.previousPage(
                         duration: d,
@@ -132,7 +169,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
                       _pages.nextPage(duration: d, curve: Curves.easeInOutCubic);
                     }
                     Future.delayed(
-                      const Duration(milliseconds: 800),
+                      Duration(milliseconds: _animOn ? 800 : 300),
                       () => _switching = false,
                     );
                   }
@@ -144,22 +181,39 @@ class _WearHomeState extends ConsumerState<WearHome> {
                 controller: _pages,
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
-                  _WearTimetablePage(
-                    key: ValueKey('now$_ttRev'),
-                    now: true,
-                    updateHint: _update != null,
+                  _KeepAlive(
+                    child: _WearTimetablePage(
+                      key: ValueKey('now$_ttRev'),
+                      now: true,
+                      updateHint: _update != null,
+                    ),
                   ),
-                  _WearTimetablePage(key: ValueKey('today$_ttRev'), now: false),
-                  const WearSubstitutionsPage(),
-                  _WearUpdatePage(
+                  _KeepAlive(
+                    child: _WearTimetablePage(
+                      key: ValueKey('today$_ttRev'),
+                      now: false,
+                    ),
+                  ),
+                  const _KeepAlive(child: WearSubstitutionsPage()),
+                  _KeepAlive(
+                    child: _WearUpdatePage(
                     initial: _update,
-                    font: _font,
-                    onFont: (v) {
-                      setState(() => _font = v);
-                      ref
-                          .read(sharedOverAccountSettingsProvider)
-                          .setString('wear-font', v.toString());
+                    onSettings: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const _WearSettingsPage(),
+                        ),
+                      );
+                      if (mounted) {
+                        setState(() {
+                          final keep = _page;
+                          _loadSettings();
+                          _page = keep;
+                          _ttRev++;
+                        });
+                      }
                     },
+                  ),
                   ),
                 ],
               ),
@@ -174,7 +228,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
                   children: [
                     for (var i = 0; i < _count; i++)
                       AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: _ad(200),
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         width: 6,
                         height: i == _page ? 16 : 6,
@@ -192,7 +246,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
           ],
         ),
       ),
-    ));
+    )));
   }
 }
 
@@ -545,12 +599,10 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
 
 class _WearUpdatePage extends ConsumerStatefulWidget {
   final UpdateInfo? initial;
-  final double font;
-  final ValueChanged<double> onFont;
+  final VoidCallback onSettings;
   const _WearUpdatePage({
     this.initial,
-    required this.font,
-    required this.onFont,
+    required this.onSettings,
   });
 
   @override
@@ -559,9 +611,6 @@ class _WearUpdatePage extends ConsumerStatefulWidget {
 
 class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
   UpdateInfo? _info;
-  bool get _subsOn =>
-      ref.read(sharedOverAccountSettingsProvider).getString('wear-subs-in-plan') !=
-      '0';
   String _status = '';
   bool _busy = false;
   double? _progress;
@@ -621,7 +670,12 @@ class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return LayoutBuilder(
+      builder: (context, cons) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: cons.maxHeight - 56),
+          child: Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
@@ -656,42 +710,173 @@ class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
             else
               FilledButton.tonal(
                 onPressed: _busy ? null : _check,
-                child: const Text('Nach Update suchen'),
+                child: const FittedBox(child: Text('Nach Update suchen')),
               ),
             const SizedBox(height: 6),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 6,
-              runSpacing: 2,
-              children: [
-                ActionChip(
+            OutlinedButton.icon(
+              onPressed: widget.onSettings,
+              icon: const Icon(Icons.settings_rounded, size: 16),
+              label: const Text('Einstellungen'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+  ),
+    );
+  }
+}
+
+
+/// Hält die Seiten der Uhr am Leben, damit sie beim Blättern nicht neu
+/// aufgebaut werden (verhindert leere/verschwindende Seiten).
+class _KeepAlive extends StatefulWidget {
+  final Widget child;
+  const _KeepAlive({required this.child});
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
+/// Etwas flinkeres Scrollen auf der Uhr (Wischweg wird verstärkt).
+class _WearScrollPhysics extends ClampingScrollPhysics {
+  final double factor;
+  const _WearScrollPhysics({this.factor = 1.6, super.parent});
+
+  @override
+  _WearScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      _WearScrollPhysics(factor: factor, parent: buildParent(ancestor));
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) =>
+      offset * factor;
+}
+
+
+/// Einstellungen der Uhr (rund, scrollbar).
+class _WearSettingsPage extends ConsumerStatefulWidget {
+  const _WearSettingsPage();
+
+  @override
+  ConsumerState<_WearSettingsPage> createState() => _WearSettingsPageState();
+}
+
+class _WearSettingsPageState extends ConsumerState<_WearSettingsPage> {
+  String _get(String k, String d) =>
+      ref.read(sharedOverAccountSettingsProvider).getString(k) ?? d;
+
+  void _set(String k, String v) {
+    ref.read(sharedOverAccountSettingsProvider).setString(k, v);
+    setState(() {});
+  }
+
+  Widget _choice(String title, String key, String def, List<(String, String)> opts) {
+    final cur = _get(key, def);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        children: [
+          Text(title, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+          const SizedBox(height: 4),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 4,
+            children: [
+              for (final o in opts)
+                ChoiceChip(
                   visualDensity: VisualDensity.compact,
-                  label: Text(
-                    'Text: ${widget.font < 0.95 ? 'klein' : widget.font > 1.05 ? 'groß' : 'normal'}',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  onPressed: () => widget.onFont(
-                    widget.font < 0.95
-                        ? 1.0
-                        : widget.font > 1.05
-                        ? 0.85
-                        : 1.15,
-                  ),
+                  label: Text(o.$1, style: const TextStyle(fontSize: 11)),
+                  selected: cur == o.$2,
+                  onSelected: (_) => _set(key, o.$2),
                 ),
-                ActionChip(
-                  visualDensity: VisualDensity.compact,
-                  label: Text(
-                    'Vertretung im Plan: ${_subsOn ? 'an' : 'aus'}',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  onPressed: () {
-                    ref
-                        .read(sharedOverAccountSettingsProvider)
-                        .setString('wear-subs-in-plan', _subsOn ? '0' : '1');
-                    setState(() {});
-                  },
-                ),
-              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subsOn = _get('wear-subs-in-plan', '1') != '0';
+    return Theme(
+      data: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.indigo,
+          brightness: Brightness.dark,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(28, 40, 28, 48),
+          children: [
+            const Center(
+              child: Text(
+                'Einstellungen',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            _choice('Textgröße', 'wear-font', '1.0', const [
+              ('Klein', '0.85'),
+              ('Normal', '1.0'),
+              ('Groß', '1.15'),
+            ]),
+            _choice('Scroll-Tempo', 'wear-scroll', '1.6', const [
+              ('Ruhig', '1.2'),
+              ('Normal', '1.6'),
+              ('Flink', '2.2'),
+            ]),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Animationen', style: TextStyle(fontSize: 13)),
+              value: _get('wear-anim', '1') != '0',
+              onChanged: (v) => _set('wear-anim', v ? '1' : '0'),
+            ),
+            if (_get('wear-anim', '1') != '0')
+              _choice('Animations-Tempo', 'wear-anim-speed', '1.0', const [
+                ('Langsam', '0.6'),
+                ('Normal', '1.0'),
+                ('Schnell', '1.6'),
+              ]),
+            _choice('Startseite', 'wear-start-page', '0', const [
+              ('Jetzt', '0'),
+              ('Heute', '1'),
+              ('Vertretung', '2'),
+            ]),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Vertretungen im Plan',
+                style: TextStyle(fontSize: 13),
+              ),
+              value: subsOn,
+              onChanged: (v) => _set('wear-subs-in-plan', v ? '1' : '0'),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Fertig'),
+              ),
             ),
           ],
         ),

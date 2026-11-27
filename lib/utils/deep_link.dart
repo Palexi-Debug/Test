@@ -158,6 +158,7 @@ abstract final class SettingsDeepLinks {
   static const errorReporting = '$base/error-reporting';
   static const calendarExport = '$base/calendar-export';
   static const timetable = '$base/timetable';
+  static const substitutions = '$base/substitutions';
   static const moodle = '/common/moodle';
   static const deepLinkError = '/deep-link-error';
 }

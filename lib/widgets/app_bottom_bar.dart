@@ -259,12 +259,75 @@ class AnimatedBottomBar extends StatelessWidget {
   final bool showLabels;
   final ValueChanged<int> onSelect;
 
+  /// Wenn gesetzt, lassen sich die Einträge (außer "Mehr") halten und
+  /// verschieben (Vorschau in den Einstellungen).
+  final void Function(String fromKey, String toKey)? onReorder;
+
   const AnimatedBottomBar({
     required this.items,
     required this.activeIndex,
     required this.showLabels,
     required this.onSelect,
+    this.onReorder,
   });
+
+  Widget _reorderable(
+    BuildContext context,
+    ColorScheme scheme,
+    BottomBarItem item,
+    double width,
+    Widget button,
+  ) {
+    final cb = onReorder;
+    if (cb == null || item.key == 'more') return button;
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => d.data != item.key,
+      onAcceptWithDetails: (d) => cb(d.data, item.key),
+      builder: (context, candidate, rejected) => LongPressDraggable<String>(
+        data: item.key,
+        delay: const Duration(milliseconds: 200),
+        feedback: SizedBox(
+          width: width,
+          child: Material(
+            elevation: 6,
+            color: scheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconTheme(
+                    data: IconThemeData(color: scheme.onSecondaryContainer),
+                    child: item.icon,
+                  ),
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSecondaryContainer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        childWhenDragging: Opacity(opacity: 0.3, child: button),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: candidate.isNotEmpty
+                ? Border.all(color: scheme.primary, width: 2)
+                : null,
+          ),
+          child: button,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -307,15 +370,21 @@ class AnimatedBottomBar extends StatelessWidget {
                     children: [
                       for (var i = 0; i < items.length; i++)
                         Expanded(
-                          child: _BarButton(
-                            item: items[i],
-                            selected: i == activeIndex,
-                            showLabel: showLabels,
-                            top: top,
-                            pillH: pillH,
-                            fast: fast,
-                            lively: lively,
-                            onTap: () => onSelect(i),
+                          child: _reorderable(
+                            context,
+                            scheme,
+                            items[i],
+                            w,
+                            _BarButton(
+                              item: items[i],
+                              selected: i == activeIndex,
+                              showLabel: showLabels,
+                              top: top,
+                              pillH: pillH,
+                              fast: fast,
+                              lively: lively,
+                              onTap: () => onSelect(i),
+                            ),
                           ),
                         ),
                     ],

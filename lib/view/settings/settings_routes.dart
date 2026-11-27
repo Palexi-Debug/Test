@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lanis/applets/calendar/calendar_export.dart';
+import 'package:lanis/applets/substitutions/substitutions_settings.dart';
 import 'package:lanis/applets/timetable/student/student_timetable_settings.dart';
 import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/utils/responsive.dart';
@@ -122,6 +123,13 @@ List<RouteBase> buildSettingsRoutes() {
                   ),
                 ),
               ],
+            ),
+            GoRoute(
+              path: 'substitutions',
+              builder: (context, state) => _settingsDetail(
+                fallbackPath: SettingsDeepLinks.home,
+                child: const SubstitutionsSettings(),
+              ),
             ),
             GoRoute(
               path: 'timetable',

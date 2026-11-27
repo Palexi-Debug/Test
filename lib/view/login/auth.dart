@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lanis/utils/login_errors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:liblanis/liblanis.dart';
@@ -132,7 +133,7 @@ class LoginFormState extends ConsumerState<LoginForm> {
 
       String cause = "";
       if (ex is LanisException) {
-        cause = ex.cause;
+        cause = friendlyLoginError(ex) ?? ex.cause;
       } else {
         if (mounted) {
           cause = AppLocalizations.of(context).unknownError;
