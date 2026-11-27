@@ -88,7 +88,11 @@ class _WearHomeState extends ConsumerState<WearHome> {
       seedColor: Colors.indigo,
       brightness: Brightness.dark,
     );
-    return MediaQuery(
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(
+        context,
+      ).copyWith(physics: const _WearScrollPhysics()),
+      child: MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaler: TextScaler.linear(_font),
       ),
@@ -127,10 +131,9 @@ class _WearHomeState extends ConsumerState<WearHome> {
                 // versehentliches Weiterblättern durch Schwung).
                 if (n is OverscrollNotification &&
                     !_switching &&
-                    _startedAtEdge &&
                     n.dragDetails != null) {
                   _overscrollSum += n.overscroll;
-                  if (_overscrollSum.abs() > 120) {
+                  if (_overscrollSum.abs() > 50) {
                     final back = _overscrollSum < 0;
                     _overscrollSum = 0;
                     _switching = true;
@@ -156,14 +159,22 @@ class _WearHomeState extends ConsumerState<WearHome> {
                 controller: _pages,
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
-                  _WearTimetablePage(
-                    key: ValueKey('now$_ttRev'),
-                    now: true,
-                    updateHint: _update != null,
+                  _KeepAlive(
+                    child: _WearTimetablePage(
+                      key: ValueKey('now$_ttRev'),
+                      now: true,
+                      updateHint: _update != null,
+                    ),
                   ),
-                  _WearTimetablePage(key: ValueKey('today$_ttRev'), now: false),
-                  const WearSubstitutionsPage(),
-                  _WearUpdatePage(
+                  _KeepAlive(
+                    child: _WearTimetablePage(
+                      key: ValueKey('today$_ttRev'),
+                      now: false,
+                    ),
+                  ),
+                  const _KeepAlive(child: WearSubstitutionsPage()),
+                  _KeepAlive(
+                    child: _WearUpdatePage(
                     initial: _update,
                     font: _font,
                     onFont: (v) {
@@ -172,6 +183,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
                           .read(sharedOverAccountSettingsProvider)
                           .setString('wear-font', v.toString());
                     },
+                  ),
                   ),
                 ],
               ),
@@ -204,7 +216,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
           ],
         ),
       ),
-    ));
+    )));
   }
 }
 
@@ -718,4 +730,40 @@ class _WearUpdatePageState extends ConsumerState<_WearUpdatePage> {
   ),
     );
   }
+}
+
+
+/// Hält die Seiten der Uhr am Leben, damit sie beim Blättern nicht neu
+/// aufgebaut werden (verhindert leere/verschwindende Seiten).
+class _KeepAlive extends StatefulWidget {
+  final Widget child;
+  const _KeepAlive({required this.child});
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
+/// Etwas flinkeres Scrollen auf der Uhr (Wischweg wird verstärkt).
+class _WearScrollPhysics extends ClampingScrollPhysics {
+  const _WearScrollPhysics({super.parent});
+
+  @override
+  _WearScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      _WearScrollPhysics(parent: buildParent(ancestor));
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) =>
+      offset * 1.6;
 }
