@@ -30,6 +30,12 @@ class _WearHomeState extends ConsumerState<WearHome> {
   late PageController _pages;
   int _page = 0;
   double _scroll = 1.6; // Scroll-Tempo (Einstellung)
+  bool _animOn = true; // Animationen (Einstellung)
+  double _animSpeed = 1.0; // Animations-Tempo (Einstellung)
+
+  Duration _ad(int ms) => _animOn
+      ? Duration(milliseconds: (ms / _animSpeed).round().clamp(1, 4000).toInt())
+      : Duration.zero;
   UpdateInfo? _update;
   double _overscrollSum = 0;
   bool _startedAtEdge = false;
@@ -61,6 +67,8 @@ class _WearHomeState extends ConsumerState<WearHome> {
     final st = ref.read(sharedOverAccountSettingsProvider);
     _font = double.tryParse(st.getString('wear-font') ?? '') ?? 1.0;
     _scroll = double.tryParse(st.getString('wear-scroll') ?? '') ?? 1.6;
+    _animOn = st.getString('wear-anim') != '0';
+    _animSpeed = double.tryParse(st.getString('wear-anim-speed') ?? '') ?? 1.0;
     _page = (int.tryParse(st.getString('wear-start-page') ?? '') ?? 0)
         .clamp(0, _count - 1)
         .toInt();
@@ -151,7 +159,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
                     final back = _overscrollSum < 0;
                     _overscrollSum = 0;
                     _switching = true;
-                    const d = Duration(milliseconds: 450);
+                    final d = _ad(450);
                     if (back) {
                       _pages.previousPage(
                         duration: d,
@@ -161,7 +169,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
                       _pages.nextPage(duration: d, curve: Curves.easeInOutCubic);
                     }
                     Future.delayed(
-                      const Duration(milliseconds: 800),
+                      Duration(milliseconds: _animOn ? 800 : 300),
                       () => _switching = false,
                     );
                   }
@@ -220,7 +228,7 @@ class _WearHomeState extends ConsumerState<WearHome> {
                   children: [
                     for (var i = 0; i < _count; i++)
                       AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: _ad(200),
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         width: 6,
                         height: i == _page ? 16 : 6,
@@ -835,6 +843,19 @@ class _WearSettingsPageState extends ConsumerState<_WearSettingsPage> {
               ('Normal', '1.6'),
               ('Flink', '2.2'),
             ]),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Animationen', style: TextStyle(fontSize: 13)),
+              value: _get('wear-anim', '1') != '0',
+              onChanged: (v) => _set('wear-anim', v ? '1' : '0'),
+            ),
+            if (_get('wear-anim', '1') != '0')
+              _choice('Animations-Tempo', 'wear-anim-speed', '1.0', const [
+                ('Langsam', '0.6'),
+                ('Normal', '1.0'),
+                ('Schnell', '1.6'),
+              ]),
             _choice('Startseite', 'wear-start-page', '0', const [
               ('Jetzt', '0'),
               ('Heute', '1'),

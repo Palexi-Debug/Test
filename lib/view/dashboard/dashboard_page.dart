@@ -916,7 +916,17 @@ class _TileCard extends StatelessWidget {
           Positioned.fill(
             child: Material(
               color: background,
-              borderRadius: BorderRadius.circular(radius),
+              // Im Bearbeiten-Modus hat jede Kachel eine grüne Umrandung (passend
+              // zum Zieh-Pfeil), damit klar ist, wie groß sie ist.
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(radius),
+                side: editing
+                    ? BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      )
+                    : BorderSide.none,
+              ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(radius),
                 onTap: editing ? onEdit : data.onTap,
