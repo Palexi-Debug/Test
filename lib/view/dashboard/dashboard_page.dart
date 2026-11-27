@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:lanis/utils/watch_sync.dart';
 import 'package:lanis/utils/garmin_sync.dart';
@@ -14,14 +15,17 @@ import 'package:lanis/utils/deep_link.dart';
 import 'package:lanis/view/server_status_page.dart';
 import 'package:lanis/applets/substitutions/definition.dart';
 import 'package:lanis/widgets/app_bottom_bar.dart';
+import 'package:lanis/view/dashboard/dashboard_layout.dart';
 import 'package:lanis/widgets/entrance.dart';
+import 'package:lanis/widgets/settings_widgets.dart';
 import 'package:lanis/view/tutorial/tutorial_page.dart';
 
 const String _orderKey = 'dashboard-order';
 const String _hiddenKey = 'dashboard-hidden';
 const String _columnsKey = 'dashboard-columns';
 const String _sizeKey = 'dashboard-size';
-const String _tileSizesKey = 'dashboard-tile-sizes';
+const String _tileSizesKey = 'dashboard-tile-sizes'; // alt (Stufen)
+const String _spansKey = 'dashboard-tile-spans'; // Breite x Höhe je Kachel
 const String _colorsKey = 'dashboard-colors';
 const String _namesKey = 'dashboard-names';
 const String _styleKey = 'dashboard-style'; // 0 bunt, 1 einfarbig
@@ -56,8 +60,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   bool _editing = false;
   Map<String, int> _colors = {};
   String? _previewId;
-  int _previewStep = 0;
-  Map<String, int> _tileSizes = {}; // 0 klein, 1 breit, 2 groß (je Kachel)
+  TileSpan? _previewSpan;
+  Map<String, TileSpan> _spans = {}; // Größe je Kachel (Breite x Höhe)
+  int _lastColumns = 2;
   Map<String, String> _names = {};
   int _style = 0;
   int _radius = 1;
@@ -79,10 +84,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           .map((k, v) => MapEntry(k as String, v as int));
       _names = (jsonDecode(settings.getString(_namesKey) ?? '{}') as Map)
           .map((k, v) => MapEntry(k as String, v as String));
-      _tileSizes =
-          (jsonDecode(settings.getString(_tileSizesKey) ?? '{}') as Map)
-              .map((k, v) => MapEntry(k as String, v as int));
     } catch (_) {}
+    _spans = decodeSpans(
+      settings.getString(_spansKey),
+      settings.getString(_tileSizesKey),
+    );
     _style = int.tryParse(settings.getString(_styleKey) ?? '') ?? 0;
     _radius = int.tryParse(settings.getString(_radiusKey) ?? '') ?? 1;
     _greetingOn = settings.getString(_greetingKey) != '0';
@@ -120,7 +126,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     settings.setString(_sizeKey, _size.toString());
     settings.setString(_colorsKey, jsonEncode(_colors));
     settings.setString(_namesKey, jsonEncode(_names));
-    settings.setString(_tileSizesKey, jsonEncode(_tileSizes));
+    settings.setString(_spansKey, encodeSpans(_spans));
+    settings.setString(_tileSizesKey, '');
     settings.setString(_styleKey, _style.toString());
     settings.setString(_radiusKey, _radius.toString());
     settings.setString(_greetingKey, _greetingOn ? '1' : '0');
@@ -128,108 +135,213 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   Future<void> _editTile(_TileData tile) async {
     final controller = TextEditingController(text: _names[tile.id] ?? tile.label);
+    final maxW = _lastColumns;
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          0,
-          20,
-          20 + MediaQuery.of(ctx).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Kachel anpassen', style: Theme.of(ctx).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                labelText: 'Name',
-                border: const OutlineInputBorder(),
-                helperText: 'Original: ${tile.label}',
-              ),
-              onChanged: (v) {
-                setState(() {
-                  if (v.trim().isEmpty || v.trim() == tile.label) {
-                    _names.remove(tile.id);
-                  } else {
-                    _names[tile.id] = v.trim();
-                  }
-                });
-                _save();
-              },
+      useSafeArea: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          void update(VoidCallback fn) {
+            setState(fn);
+            setSheet(() {});
+            _save();
+          }
+
+          final span = (_spans[tile.id] ?? TileSpan.unit).clamped(maxW);
+          void setSpan(TileSpan v) => update(() {
+            if (v.isUnit) {
+              _spans.remove(tile.id);
+            } else {
+              _spans[tile.id] = v;
+            }
+          });
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              20 + MediaQuery.of(ctx).viewInsets.bottom,
             ),
-            const SizedBox(height: 16),
-            Text('Größe der Kachel', style: Theme.of(ctx).textTheme.labelLarge),
-            const SizedBox(height: 8),
-            StatefulBuilder(
-              builder: (ctx, setSheet) => SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<int>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment<int>(value: 0, label: Text('Klein')),
-                    ButtonSegment<int>(value: 1, label: Text('Breit')),
-                    ButtonSegment<int>(value: 2, label: Text('Groß')),
-                  ],
-                  selected: {_tileSizes[tile.id] ?? 0},
-                  onSelectionChanged: (v) {
-                    setSheet(() {});
-                    setState(() {
-                      if (v.first == 0) {
-                        _tileSizes.remove(tile.id);
-                      } else {
-                        _tileSizes[tile.id] = v.first;
-                      }
-                    });
-                    _save();
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('Farbe', style: Theme.of(ctx).textTheme.labelLarge),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                ActionChip(
-                  avatar: const Icon(Icons.auto_awesome_rounded, size: 18),
-                  label: const Text('Automatisch'),
-                  onPressed: () {
-                    setState(() => _colors.remove(tile.id));
-                    _save();
-                    Navigator.pop(ctx);
-                  },
-                ),
-                for (final c in _tilePalette)
-                  InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () {
-                      setState(() => _colors[tile.id] = c.toARGB32());
-                      _save();
-                      Navigator.pop(ctx);
-                    },
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: c,
-                      child: _colors[tile.id] == c.toARGB32()
-                          ? const Icon(Icons.check, color: Colors.white)
-                          : null,
-                    ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Kachel anpassen',
+                    style: Theme.of(ctx).textTheme.titleLarge,
                   ),
-              ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      labelText: 'Name',
+                      border: const OutlineInputBorder(),
+                      helperText: 'Original: ${tile.label}',
+                    ),
+                    onChanged: (v) => update(() {
+                      if (v.trim().isEmpty || v.trim() == tile.label) {
+                        _names.remove(tile.id);
+                      } else {
+                        _names[tile.id] = v.trim();
+                      }
+                    }),
+                  ),
+                  const SettingsSectionHeader(
+                    'Größe',
+                    padding: EdgeInsets.fromLTRB(0, 16, 0, 0),
+                  ),
+                  SettingsSegmentField<int>(
+                    label: 'Breite (Spalten)',
+                    value: span.w,
+                    options: {
+                      for (var i = 1; i <= maxW; i++) i: '$i',
+                    },
+                    onChanged: (v) => setSpan(TileSpan(v, span.h)),
+                  ),
+                  SettingsSegmentField<int>(
+                    label: 'Höhe (Zeilen)',
+                    value: span.h,
+                    options: {
+                      for (var i = 1; i <= TileSpan.maxHeight; i++) i: '$i',
+                    },
+                    onChanged: (v) => setSpan(TileSpan(span.w, v)),
+                  ),
+                  const SettingsSectionHeader(
+                    'Farbe',
+                    padding: EdgeInsets.fromLTRB(0, 12, 0, 8),
+                  ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.auto_awesome_rounded, size: 18),
+                        label: const Text('Automatisch'),
+                        onPressed: () => update(() => _colors.remove(tile.id)),
+                      ),
+                      for (final c in _tilePalette)
+                        InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () =>
+                              update(() => _colors[tile.id] = c.toARGB32()),
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: c,
+                            child: _colors[tile.id] == c.toARGB32()
+                                ? const Icon(Icons.check, color: Colors.white)
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Kachel anzeigen'),
+                    value: !_hidden.contains(tile.id),
+                    onChanged: (v) => update(() {
+                      if (v) {
+                        _hidden.remove(tile.id);
+                      } else {
+                        _hidden.add(tile.id);
+                      }
+                    }),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
     controller.dispose();
+  }
+
+  /// Layout-Einstellungen für die ganze Startseite.
+  Future<void> _openLayoutSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          void update(VoidCallback fn) {
+            setState(fn);
+            setSheet(() {});
+            _save();
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Startseite anpassen',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SettingsSectionHeader(
+                  'Raster',
+                  padding: EdgeInsets.fromLTRB(0, 16, 0, 4),
+                ),
+                SettingsSegmentField<int>(
+                  label: 'Spalten',
+                  value: _columns,
+                  options: const {0: 'Auto', 1: '1', 2: '2', 3: '3', 4: '4'},
+                  onChanged: (v) => update(() => _columns = v),
+                ),
+                SettingsSegmentField<int>(
+                  label: 'Zeilenhöhe',
+                  hint: 'Gilt für alle Kacheln; einzelne ziehst du an der Ecke.',
+                  value: _size,
+                  options: const {0: 'Flach', 1: 'Mittel', 2: 'Hoch'},
+                  onChanged: (v) => update(() => _size = v),
+                ),
+                const SettingsSectionHeader(
+                  'Aussehen',
+                  padding: EdgeInsets.fromLTRB(0, 16, 0, 4),
+                ),
+                SettingsSegmentField<int>(
+                  label: 'Stil',
+                  value: _style,
+                  options: const {0: 'Bunt', 1: 'Einfarbig'},
+                  onChanged: (v) => update(() => _style = v),
+                ),
+                SettingsSegmentField<int>(
+                  label: 'Ecken',
+                  value: _radius,
+                  options: const {0: 'Eckig', 1: 'Rund', 2: 'Sehr rund'},
+                  onChanged: (v) => update(() => _radius = v),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Begrüßung anzeigen'),
+                  value: _greetingOn,
+                  onChanged: (v) => update(() => _greetingOn = v),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _reset();
+                      setSheet(() {});
+                    },
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Alles zurücksetzen'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _reset() {
@@ -240,7 +352,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       _size = 1;
       _colors = {};
       _names = {};
-      _tileSizes = {};
+      _spans = {};
       _style = 0;
       _radius = 1;
       _greetingOn = true;
@@ -440,6 +552,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               ? 3
               : 2;
           final columns = _columns == 0 ? autoColumns : _columns;
+          _lastColumns = columns;
           const baseAspect = [1.5, 1.15, 0.95];
           final aspect = baseAspect[_size] * (columns == 1 ? 2.4 : 1.0);
           const padding = 12.0;
@@ -447,42 +560,26 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           final cellWidth =
               (width - 2 * padding - spacing * (columns - 1)) / columns;
           final cellHeight = cellWidth / aspect;
+          final radiusValue = const [12.0, 24.0, 34.0][_radius];
 
-          // Kacheln einzeln größenverstellbar: einfache Raster-Platzierung
-          // (klein 1x1, breit 2x1, groß 2x2), Lücken füllen sich automatisch.
-          final placed = <String, ({int r, int c, int w, int h})>{};
-          final occ = <List<bool>>[];
-          for (final id in shownIds) {
-            final sz = _tileSizes[id] ?? 0;
-            final w = (sz >= 1 ? 2 : 1).clamp(1, columns).toInt();
-            final h = sz == 2 ? 2 : 1;
-            var done = false;
-            for (var r = 0; !done; r++) {
-              for (var c = 0; c + w <= columns && !done; c++) {
-                var ok = true;
-                for (var rr = r; rr < r + h && ok; rr++) {
-                  for (var cc = c; cc < c + w; cc++) {
-                    if (rr < occ.length && occ[rr][cc]) {
-                      ok = false;
-                      break;
-                    }
-                  }
-                }
-                if (!ok) continue;
-                while (occ.length < r + h) {
-                  occ.add(List<bool>.filled(columns, false));
-                }
-                for (var rr = r; rr < r + h; rr++) {
-                  for (var cc = c; cc < c + w; cc++) {
-                    occ[rr][cc] = true;
-                  }
-                }
-                placed[id] = (r: r, c: c, w: w, h: h);
-                done = true;
-              }
-            }
+          final layout = placeTiles(shownIds, _spans, columns);
+          final placed = layout.placed;
+
+          // Vorschau beim Ziehen: so sähe das Raster nach dem Loslassen aus.
+          TileLayout? previewLayout;
+          if (_editing && _previewId != null && _previewSpan != null) {
+            previewLayout = placeTiles(shownIds, {
+              ..._spans,
+              _previewId!: _previewSpan!,
+            }, columns);
           }
-          final totalRows = occ.length;
+          final previewRows = previewLayout?.rows ?? 0;
+          final totalRows = previewRows > layout.rows ? previewRows : layout.rows;
+
+          double xOf(int c) => c * (cellWidth + spacing);
+          double yOf(int r) => r * (cellHeight + spacing);
+          double wOf(int w) => w * cellWidth + (w - 1) * spacing;
+          double hOf(int h) => h * cellHeight + (h - 1) * spacing;
 
           Widget cell(String id) {
             final data = byId[id]!;
@@ -510,54 +607,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       icon: data.icon,
                       onTap: data.onTap,
                     ),
-              radius: const [12.0, 24.0, 34.0][_radius],
+              radius: radiusValue,
               onEdit: () => _editTile(data),
               background: colors.$1,
               foreground: colors.$2,
-              wide: columns == 1 || span.w > 1,
+              wide: span.h == 1 && (columns == 1 || span.w > 1),
+              tall: span.h > 1,
               editing: _editing,
               hidden: _hidden.contains(id),
               onToggleHidden: () => _toggleHidden(id),
             );
             if (!_editing) return tile;
-            // Zieh-Stück unten rechts: ziehen vergrößert/verkleinert die Kachel.
-            final tileEditable = Stack(
-              children: [
-                Positioned.fill(child: tile),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: _ResizeHandle(
-                    unit: cellWidth * 0.5,
-                    onPreview: (step) {
-                      if (step == null) {
-                        if (_previewId != null) {
-                          setState(() => _previewId = null);
-                        }
-                      } else if (_previewId != id || _previewStep != step) {
-                        setState(() {
-                          _previewId = id;
-                          _previewStep = step;
-                        });
-                      }
-                    },
-                    onStep: (step) {
-                      final cur = _tileSizes[id] ?? 0;
-                      final next = (cur + step).clamp(0, 2).toInt();
-                      if (next == cur) return;
-                      setState(() {
-                        if (next == 0) {
-                          _tileSizes.remove(id);
-                        } else {
-                          _tileSizes[id] = next;
-                        }
-                      });
-                      _save();
-                    },
-                  ),
-                ),
-              ],
-            );
             return DragTarget<String>(
               onWillAcceptWithDetails: (details) => details.data != id,
               onAcceptWithDetails: (details) =>
@@ -567,8 +627,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     data: id,
                     delay: const Duration(milliseconds: 150),
                     feedback: SizedBox(
-                      width: span.w * cellWidth + (span.w - 1) * spacing,
-                      height: span.h * cellHeight + (span.h - 1) * spacing,
+                      width: wOf(span.w),
+                      height: hOf(span.h),
                       child: Material(
                         type: MaterialType.transparency,
                         child: Opacity(opacity: 0.9, child: tile),
@@ -578,12 +638,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(const [12.0, 24.0, 34.0][_radius]),
+                        borderRadius: BorderRadius.circular(radiusValue),
                         border: candidate.isNotEmpty
                             ? Border.all(color: scheme.primary, width: 3)
                             : null,
                       ),
-                      child: tileEditable,
+                      child: tile,
                     ),
                   ),
             );
@@ -621,7 +681,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   child: _editing
                       ? Padding(
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                          child: _editPanel(context),
+                          child: _editHint(context),
                         )
                       : const SizedBox(width: double.infinity),
                 ),
@@ -643,53 +703,87 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                             key: ValueKey(shownIds[i]),
                             duration: const Duration(milliseconds: 350),
                             curve: Curves.easeInOutCubic,
-                            left: placed[shownIds[i]]!.c * (cellWidth + spacing),
-                            top: placed[shownIds[i]]!.r * (cellHeight + spacing),
-                            width: placed[shownIds[i]]!.w * cellWidth +
-                                (placed[shownIds[i]]!.w - 1) * spacing,
-                            height: placed[shownIds[i]]!.h * cellHeight +
-                                (placed[shownIds[i]]!.h - 1) * spacing,
+                            left: xOf(placed[shownIds[i]]!.col),
+                            top: yOf(placed[shownIds[i]]!.row),
+                            width: wOf(placed[shownIds[i]]!.w),
+                            height: hOf(placed[shownIds[i]]!.h),
                             child: Entrance(index: i, child: cell(shownIds[i])),
                           ),
                         // Vorschau-Umrandung: so groß wird die Kachel.
-                        if (_editing &&
-                            _previewId != null &&
-                            placed.containsKey(_previewId))
-                          Builder(
-                            builder: (context) {
-                              final pl = placed[_previewId]!;
-                              final target =
-                                  ((_tileSizes[_previewId] ?? 0) + _previewStep)
-                                      .clamp(0, 2)
-                                      .toInt();
-                              final tw = (target >= 1 ? 2 : 1)
-                                  .clamp(1, columns)
-                                  .toInt();
-                              final th = target == 2 ? 2 : 1;
-                              return Positioned(
-                                left: pl.c * (cellWidth + spacing),
-                                top: pl.r * (cellHeight + spacing),
-                                width: tw * cellWidth + (tw - 1) * spacing,
-                                height: th * cellHeight + (th - 1) * spacing,
-                                child: IgnorePointer(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: scheme.primary.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      border: Border.all(
-                                        color: scheme.primary,
-                                        width: 3,
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                        const [12.0, 24.0, 34.0][_radius],
-                                      ),
-                                    ),
+                        if (previewLayout != null &&
+                            previewLayout.placed[_previewId] != null)
+                          Positioned(
+                            left: xOf(previewLayout.placed[_previewId]!.col),
+                            top: yOf(previewLayout.placed[_previewId]!.row),
+                            width: wOf(previewLayout.placed[_previewId]!.w),
+                            height: hOf(previewLayout.placed[_previewId]!.h),
+                            child: IgnorePointer(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: scheme.primary.withValues(alpha: 0.12),
+                                  border: Border.all(
+                                    color: scheme.primary,
+                                    width: 3,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    radiusValue,
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
+                        // Zieh-Stücke liegen über den Kacheln (nicht darin), damit
+                        // Ziehen in alle Richtungen funktioniert und die Seite
+                        // dabei nicht mitscrollt.
+                        if (_editing)
+                          for (final id in shownIds)
+                            if (placed[id] != null)
+                              Positioned(
+                                key: ValueKey('handle-$id'),
+                                left: xOf(placed[id]!.col) +
+                                    wOf(placed[id]!.w) -
+                                    _ResizeHandle.size,
+                                top: yOf(placed[id]!.row) +
+                                    hOf(placed[id]!.h) -
+                                    _ResizeHandle.size,
+                                width: _ResizeHandle.size,
+                                height: _ResizeHandle.size,
+                                child: _ResizeHandle(
+                                  start: TileSpan(
+                                    placed[id]!.w,
+                                    placed[id]!.h,
+                                  ),
+                                  stepX: cellWidth + spacing,
+                                  stepY: cellHeight + spacing,
+                                  maxW: columns,
+                                  onPreview: (span) {
+                                    if (span == null) {
+                                      if (_previewId != null) {
+                                        setState(() {
+                                          _previewId = null;
+                                          _previewSpan = null;
+                                        });
+                                      }
+                                    } else if (_previewId != id ||
+                                        _previewSpan != span) {
+                                      setState(() {
+                                        _previewId = id;
+                                        _previewSpan = span;
+                                      });
+                                    }
+                                  },
+                                  onCommit: (span) {
+                                    setState(() {
+                                      if (span.isUnit) {
+                                        _spans.remove(id);
+                                      } else {
+                                        _spans[id] = span;
+                                      }
+                                    });
+                                    _save();
+                                  },
+                                ),
+                              ),
                       ],
                     ),
                   ),
@@ -702,119 +796,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
   }
 
-  Widget _editPanel(BuildContext context) {
-    final labelStyle = Theme.of(context).textTheme.labelLarge;
+  Widget _editHint(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Card(
       margin: EdgeInsets.zero,
+      color: scheme.surfaceContainerHigh,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
           children: [
-            Text(
-              'Kachel gedrückt halten und verschieben. Tippen ändert Name, Größe und Farbe, das Auge blendet eine Kachel aus.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            Text('Spalten', style: labelStyle),
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment<int>(value: 0, label: Text('Auto')),
-                  ButtonSegment<int>(value: 1, label: Text('1')),
-                  ButtonSegment<int>(value: 2, label: Text('2')),
-                  ButtonSegment<int>(value: 3, label: Text('3')),
-                  ButtonSegment<int>(value: 4, label: Text('4')),
-                ],
-                selected: {_columns},
-                onSelectionChanged: (value) {
-                  setState(() => _columns = value.first);
-                  _save();
-                },
+            Expanded(
+              child: Text(
+                'Halten und ziehen zum Verschieben · Ecke ziehen ändert Breite und Höhe · Tippen für Name, Größe, Farbe',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-            const SizedBox(height: 12),
-            Text('Größe', style: labelStyle),
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment<int>(value: 0, label: Text('Klein')),
-                  ButtonSegment<int>(value: 1, label: Text('Mittel')),
-                  ButtonSegment<int>(value: 2, label: Text('Groß')),
-                ],
-                selected: {_size},
-                onSelectionChanged: (value) {
-                  setState(() => _size = value.first);
-                  _save();
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text('Stil', style: labelStyle),
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment<int>(value: 0, label: Text('Bunt')),
-                  ButtonSegment<int>(value: 1, label: Text('Einfarbig')),
-                ],
-                selected: {_style},
-                onSelectionChanged: (value) {
-                  setState(() => _style = value.first);
-                  _save();
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text('Ecken', style: labelStyle),
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment<int>(value: 0, label: Text('Eckig')),
-                  ButtonSegment<int>(value: 1, label: Text('Rund')),
-                  ButtonSegment<int>(value: 2, label: Text('Sehr rund')),
-                ],
-                selected: {_radius},
-                onSelectionChanged: (value) {
-                  setState(() => _radius = value.first);
-                  _save();
-                },
-              ),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Begrüßung anzeigen'),
-              value: _greetingOn,
-              onChanged: (v) {
-                setState(() => _greetingOn = v);
-                _save();
-              },
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _reset,
-                icon: const Icon(Icons.restart_alt),
-                label: const Text('Zurücksetzen'),
-              ),
+            const SizedBox(width: 8),
+            FilledButton.tonalIcon(
+              onPressed: _openLayoutSheet,
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: const Text('Layout'),
             ),
           ],
         ),
       ),
     );
   }
-}
 
 class _TileData {
   final String id;
@@ -837,6 +844,7 @@ class _TileCard extends StatelessWidget {
   final Color background;
   final Color foreground;
   final bool wide;
+  final bool tall;
   final bool editing;
   final bool hidden;
   final VoidCallback onToggleHidden;
@@ -850,6 +858,7 @@ class _TileCard extends StatelessWidget {
     required this.background,
     required this.foreground,
     required this.wide,
+    this.tall = false,
     required this.editing,
     required this.hidden,
     required this.onToggleHidden,
@@ -865,7 +874,7 @@ class _TileCard extends StatelessWidget {
           padding: const EdgeInsets.only(top: 2),
           child: Text(
             data.live!,
-            maxLines: 3,
+            maxLines: tall ? 8 : 3,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: foreground.withValues(alpha: 0.8),
@@ -894,7 +903,7 @@ class _TileCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(data.icon, size: 38, color: foreground),
+              Icon(data.icon, size: tall ? 48 : 38, color: foreground),
               _labelBlock(titleStyle),
             ],
           );
@@ -965,15 +974,28 @@ class _FitLabel extends StatelessWidget {
 }
 
 
-/// Zieh-Stück zum Vergrößern/Verkleinern einer Kachel (Bearbeiten-Modus).
+/// Zieh-Stück zum Ändern von Breite und Höhe einer Kachel (Bearbeiten-Modus).
+///
+/// Gewinnt die Gesten-Arena sofort ([EagerGestureRecognizer]), damit weder die
+/// Seite mitscrollt noch das Verschieben der Kachel dazwischenfunkt; die
+/// Bewegung wird über rohe Zeiger-Ereignisse gelesen.
 class _ResizeHandle extends StatefulWidget {
-  final double unit;
-  final ValueChanged<int> onStep;
-  final ValueChanged<int?> onPreview;
+  static const double size = 52;
+
+  final TileSpan start;
+  final double stepX;
+  final double stepY;
+  final int maxW;
+  final ValueChanged<TileSpan?> onPreview;
+  final ValueChanged<TileSpan> onCommit;
+
   const _ResizeHandle({
-    required this.unit,
-    required this.onStep,
+    required this.start,
+    required this.stepX,
+    required this.stepY,
+    required this.maxW,
     required this.onPreview,
+    required this.onCommit,
   });
 
   @override
@@ -981,41 +1003,76 @@ class _ResizeHandle extends StatefulWidget {
 }
 
 class _ResizeHandleState extends State<_ResizeHandle> {
-  double _drag = 0;
+  Offset _delta = Offset.zero;
+  bool _active = false;
+  TileSpan? _last;
+
+  TileSpan _target() {
+    final dw = (_delta.dx / widget.stepX).round();
+    final dh = (_delta.dy / widget.stepY).round();
+    return TileSpan(
+      widget.start.w + dw,
+      widget.start.h + dh,
+    ).clamped(widget.maxW);
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
+    return RawGestureDetector(
       behavior: HitTestBehavior.opaque,
-      onPanUpdate: (d) {
-        _drag += d.delta.dx + d.delta.dy;
-        widget.onPreview(
-          _drag > widget.unit ? 1 : (_drag < -widget.unit ? -1 : 0),
-        );
+      gestures: {
+        EagerGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+              EagerGestureRecognizer.new,
+              (_) {},
+            ),
       },
-      onPanEnd: (_) {
-        widget.onPreview(null);
-        if (_drag > widget.unit) {
-          widget.onStep(1);
-        } else if (_drag < -widget.unit) {
-          widget.onStep(-1);
-        }
-        _drag = 0;
-      },
-      onPanCancel: () {
-        _drag = 0;
-        widget.onPreview(null);
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: scheme.surface.withValues(alpha: 0.75),
-            shape: BoxShape.circle,
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: (_) {
+          _delta = Offset.zero;
+          _active = true;
+          _last = widget.start;
+        },
+        onPointerMove: (e) {
+          if (!_active) return;
+          _delta += e.delta;
+          final t = _target();
+          if (t != _last) {
+            _last = t;
+            widget.onPreview(t);
+          }
+        },
+        onPointerUp: (_) {
+          if (!_active) return;
+          _active = false;
+          final t = _target();
+          widget.onPreview(null);
+          if (t != widget.start) widget.onCommit(t);
+        },
+        onPointerCancel: (_) {
+          _active = false;
+          widget.onPreview(null);
+        },
+        child: Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: scheme.surface.withValues(alpha: 0.85),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.open_in_full_rounded,
+                size: 18,
+                color: scheme.primary,
+              ),
+            ),
           ),
-          child: Icon(Icons.open_in_full_rounded, size: 16, color: scheme.primary),
         ),
       ),
     );

@@ -18,11 +18,13 @@ import 'package:lanis/view/settings/start_page.dart';
 import 'package:lanis/view/settings/subsettings/cache.dart';
 import 'package:lanis/view/settings/subsettings/sync_settings.dart';
 import 'package:lanis/widgets/press_tile.dart';
+import 'package:lanis/widgets/settings_widgets.dart';
 
 class SettingsGroup {
+  final String? title;
   final List<SettingsTile> tiles;
 
-  const SettingsGroup({required this.tiles});
+  const SettingsGroup({this.title, required this.tiles});
 }
 
 class SettingsTile {
@@ -61,19 +63,32 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
   bool _supports(AppletMeta applet) =>
       ref.read(supportedAppletPhpUrlsProvider).contains(applet.appletPhpUrl);
 
+  /// Ein/Aus-Zustand einer lokalen Einstellung als Untertitel.
+  String _onOff(String key, String on, String off, {bool defaultOn = true}) {
+    final v = ref.read(sharedOverAccountSettingsProvider).getString(key);
+    final enabled = defaultOn ? v != '0' : v == '1';
+    return enabled ? on : off;
+  }
+
   List<SettingsGroup> _buildSettingsTiles() {
     return [
       SettingsGroup(
+        title: 'Darstellung',
         tiles: [
           SettingsTile(
             title: (context) => AppLocalizations.of(context).appearance,
-            subtitle: (context) async {
-              return AppLocalizations.of(context).darkModeColoursList;
-            },
+            subtitle: (context) async =>
+                'Farben, Design, Navigationsleiste, Stundenplan-Optik',
             icon: Icons.palette_rounded,
             routePath: SettingsDeepLinks.appearance,
             screen: (context) async =>
                 context.push(SettingsDeepLinks.appearance),
+          ),
+          SettingsTile(
+            title: (context) => 'Startseite',
+            subtitle: (context) async => 'Welcher Bereich zuerst geöffnet wird',
+            icon: Icons.home_rounded,
+            screen: (context) async => showStartPageDialog(context),
           ),
           SettingsTile(
             title: (context) => AppLocalizations.of(context).language,
@@ -140,17 +155,45 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
               return false;
             },
           ),
-          SettingsTile(
-            title: (context) => 'Startseite',
-            subtitle: (context) async => 'Welcher Bereich zuerst geöffnet wird',
-            icon: Icons.home_rounded,
-            screen: (context) async => showStartPageDialog(context),
-          ),
+        ],
+      ),
+      SettingsGroup(
+        title: 'Bereiche',
+        tiles: [
+          if (_supports(Applets.substitutions))
+            SettingsTile(
+              title: (context) => 'Vertretungsplan',
+              subtitle: (context) async =>
+                  'Im Stundenplan anzeigen, Ausfälle grau, Filter',
+              icon: Icons.swap_horiz_rounded,
+              routePath: SettingsDeepLinks.substitutions,
+              screen: (context) async =>
+                  context.push(SettingsDeepLinks.substitutions),
+            ),
+          if (_supports(Applets.timetable))
+            SettingsTile(
+              title: (context) =>
+                  AppLocalizations.of(context).customizeTimetable,
+              subtitle: (context) async =>
+                  AppLocalizations.of(context).customizeTimetableDescription,
+              icon: Icons.timelapse,
+              routePath: SettingsDeepLinks.timetable,
+              screen: (context) async =>
+                  context.push(SettingsDeepLinks.timetable),
+            ),
+          if (_supports(Applets.calendar))
+            SettingsTile(
+              title: (context) => AppLocalizations.of(context).calendarExport,
+              subtitle: (context) async => 'PDF, iCal, ICS, CSV',
+              icon: Icons.download_rounded,
+              routePath: SettingsDeepLinks.calendarExport,
+              screen: (context) async =>
+                  context.push(SettingsDeepLinks.calendarExport),
+            ),
           SettingsTile(
             title: (context) => AppLocalizations.of(context).notifications,
-            subtitle: (context) async {
-              return AppLocalizations.of(context).intervalAppletsList;
-            },
+            subtitle: (context) async =>
+                AppLocalizations.of(context).intervalAppletsList,
             icon: Icons.notifications_rounded,
             routePath: SettingsDeepLinks.notifications,
             screen: (context) async {
@@ -159,65 +202,10 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
               }
             },
           ),
-          SettingsTile(
-            title: (context) => AppLocalizations.of(context).clearCache,
-            subtitle: (context) async {
-              Map<String, int> cacheStats = {'fileNum': 0, 'size': 0};
-
-              final storage = ref.read(storageManagerProvider);
-              if (storage != null) {
-                final dir = storage.getDocumentCacheDirectory();
-                cacheStats = CacheSettings.dirStatSync(dir.path);
-              }
-
-              return "${cacheStats['fileNum']} ${cacheStats['fileNum'] == 1 ? (context.mounted ? AppLocalizations.of(context).file : 'Datei') : (context.mounted ? AppLocalizations.of(context).files : 'Dateien')} (${cacheStats['size']! ~/ 1024} KB)";
-            },
-            icon: Icons.storage_rounded,
-            routePath: SettingsDeepLinks.cache,
-            screen: (context) async => context.push(SettingsDeepLinks.cache),
-          ),
-        ],
-      ),
-      if (_supports(Applets.calendar) || _supports(Applets.timetable))
-        SettingsGroup(
-          tiles: [
-            if (_supports(Applets.calendar))
-              SettingsTile(
-                title: (context) => AppLocalizations.of(context).calendarExport,
-                subtitle: (context) async => 'PDF, iCal, ICS, CSV',
-                icon: Icons.download_rounded,
-                routePath: SettingsDeepLinks.calendarExport,
-                screen: (context) async =>
-                    context.push(SettingsDeepLinks.calendarExport),
-              ),
-            if (_supports(Applets.timetable))
-              SettingsTile(
-                title: (context) =>
-                    AppLocalizations.of(context).customizeTimetable,
-                subtitle: (context) async =>
-                    AppLocalizations.of(context).customizeTimetableDescription,
-                icon: Icons.timelapse,
-                routePath: SettingsDeepLinks.timetable,
-                screen: (context) async =>
-                    context.push(SettingsDeepLinks.timetable),
-              ),
-          ],
-        ),
-      SettingsGroup(
-        tiles: [
-          SettingsTile(
-            title: (context) => AppLocalizations.of(context).userData,
-            subtitle: (context) async {
-              return AppLocalizations.of(context).ageNameClassList;
-            },
-            icon: Icons.account_circle_rounded,
-            routePath: SettingsDeepLinks.userdata,
-            screen: (context) async =>
-                context.push(SettingsDeepLinks.userdata),
-          ),
         ],
       ),
       SettingsGroup(
+        title: 'Geräte & Sicherheit',
         tiles: [
           SettingsTile(
             icon: Icons.watch_rounded,
@@ -233,44 +221,16 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
               );
             },
           ),
-        ],
-      ),
-      SettingsGroup(
-        tiles: [
-          SettingsTile(
-            icon: Icons.swap_horiz_rounded,
-            show: () async => !WearMode.enabled,
-            title: (context) => 'Vertretungen im Stundenplan',
-            subtitle: (context) async =>
-                ProviderScope.containerOf(context)
-                        .read(sharedOverAccountSettingsProvider)
-                        .getString('tt-subs-in-plan') ==
-                    '0'
-                ? 'Aus – der Stundenplan zeigt nur den normalen Plan'
-                : 'An – geänderte Stunden werden direkt eingesetzt (tippen zum Ändern)',
-            screen: (context) async {
-              final settings = ProviderScope.containerOf(
-                context,
-              ).read(sharedOverAccountSettingsProvider);
-              final on = settings.getString('tt-subs-in-plan') != '0';
-              settings.setString('tt-subs-in-plan', on ? '0' : '1');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    on
-                        ? 'Vertretungen im Stundenplan ausgeschaltet'
-                        : 'Vertretungen im Stundenplan eingeschaltet',
-                  ),
-                ),
-              );
-            },
-          ),
           SettingsTile(
             icon: Icons.fingerprint_rounded,
             show: () async => !WearMode.enabled,
             title: (context) => 'App-Sperre',
-            subtitle: (context) async =>
-                'Fingerabdruck oder Geräte-PIN beim Öffnen der App',
+            subtitle: (context) async => _onOff(
+              appLockKey,
+              'An – Fingerabdruck oder Geräte-PIN beim Öffnen',
+              'Aus – tippen zum Einschalten',
+              defaultOn: false,
+            ),
             screen: (context) async {
               final container = ProviderScope.containerOf(context);
               final settings = container.read(sharedOverAccountSettingsProvider);
@@ -299,10 +259,37 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
               );
             },
           ),
+          SettingsTile(
+            title: (context) => AppLocalizations.of(context).userData,
+            subtitle: (context) async =>
+                AppLocalizations.of(context).ageNameClassList,
+            icon: Icons.account_circle_rounded,
+            routePath: SettingsDeepLinks.userdata,
+            screen: (context) async =>
+                context.push(SettingsDeepLinks.userdata),
+          ),
         ],
       ),
       SettingsGroup(
+        title: 'Speicher & App',
         tiles: [
+          SettingsTile(
+            title: (context) => AppLocalizations.of(context).clearCache,
+            subtitle: (context) async {
+              Map<String, int> cacheStats = {'fileNum': 0, 'size': 0};
+
+              final storage = ref.read(storageManagerProvider);
+              if (storage != null) {
+                final dir = storage.getDocumentCacheDirectory();
+                cacheStats = CacheSettings.dirStatSync(dir.path);
+              }
+
+              return "${cacheStats['fileNum']} ${cacheStats['fileNum'] == 1 ? (context.mounted ? AppLocalizations.of(context).file : 'Datei') : (context.mounted ? AppLocalizations.of(context).files : 'Dateien')} (${cacheStats['size']! ~/ 1024} KB)";
+            },
+            icon: Icons.storage_rounded,
+            routePath: SettingsDeepLinks.cache,
+            screen: (context) async => context.push(SettingsDeepLinks.cache),
+          ),
           SettingsTile(
             icon: Icons.info_outline_rounded,
             show: () async => true,
@@ -340,7 +327,14 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: List.generate(settingsTiles[groupIndex].tiles.length, (
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (settingsTiles[groupIndex].title != null)
+                  SettingsSectionHeader(
+                    settingsTiles[groupIndex].title!,
+                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                  ),
+                ...List.generate(settingsTiles[groupIndex].tiles.length, (
                 tileIndex,
               ) {
                 final tile = settingsTiles[groupIndex].tiles[tileIndex];
@@ -364,6 +358,7 @@ class _SettingsScreenState extends ConsumerSettingsColoursState<SettingsScreen> 
                       : null,
                 );
               }),
+              ],
             ),
           );
         },
@@ -502,12 +497,14 @@ class _SettingsTileWidgetState extends State<SettingsTileWidget> {
         subtitle: subtitle,
         icon: widget.tile.icon,
         selected: widget.selected,
-        onPressed: () {
+        onPressed: () async {
           if (widget.onSelect != null) {
             widget.onSelect!(widget.tile);
           } else {
-            widget.tile.screen(context);
+            await widget.tile.screen(context);
           }
+          // Untertitel (z. B. An/Aus) nach der Änderung neu lesen.
+          if (mounted) setState(() {});
         },
         foregroundColor: widget.foregroundColor,
         borderRadius: SettingsTileWidget.getRadius(widget.index, widget.length),

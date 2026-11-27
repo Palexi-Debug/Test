@@ -320,11 +320,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
   bool get _labels =>
       (_p['nav-labels'] ?? (_t['nav-labels'] as bool ? '1' : '0')) != '0';
 
-  bool get _greyCancelled =>
-      (_p['tt-grey-cancelled'] ??
-          (_t['tt-grey-cancelled'] as bool ? '1' : '0')) !=
-      '0';
-
   bool get _center =>
       (_p['look-center'] ?? (_t['look-center'] as bool ? '1' : '0')) == '1';
 
@@ -604,13 +599,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
           max: 1.0,
           display: (v) => '${(v * 100).round()} %',
           onChanged: (v) => _set('tt-intensity', v.toStringAsFixed(2)),
-        ),
-        SwitchListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          title: const Text('Ausfall grau anzeigen'),
-          subtitle: const Text('Entfallende Stunden werden im Stundenplan grau'),
-          value: _greyCancelled,
-          onChanged: (v) => _set('tt-grey-cancelled', v ? '1' : '0'),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
