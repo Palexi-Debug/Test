@@ -115,6 +115,17 @@ class _ErrorReportingSettingsState
             );
           },
         ),
+        StatefulBuilder(
+          builder: (context, setSwitch) => SwitchListTile(
+            secondary: const Icon(Icons.wifi_off_rounded),
+            title: const Text('Offline simulieren'),
+            subtitle: const Text(
+              'Testet Cache und „veraltet"-Anzeige, ohne WLAN auszuschalten (bis zum Neustart)',
+            ),
+            value: ConnectionChecker.forceOffline,
+            onChanged: (v) => setSwitch(() => ConnectionChecker.forceOffline = v),
+          ),
+        ),
         ListTile(
           leading: const Icon(Icons.article_outlined),
           title: const Text('Logs anzeigen'),

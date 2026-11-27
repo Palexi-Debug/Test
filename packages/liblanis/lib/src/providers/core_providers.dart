@@ -292,13 +292,30 @@ Set<String> supportedAppletPhpUrls(Ref ref) {
   ref.watch(sessionFeatureEpochProvider);
   final session = ref.watch(sessionProvider).asData?.value;
   final account = ref.watch(activeAccountProvider);
-  if (session == null || account == null) return const {};
+  if (account == null) return const {};
 
+  // Ohne Anmeldung (z. B. offline gestartet): Bereiche mit gespeicherten
+  // Daten anbieten, damit der Cache im normalen Menü erreichbar bleibt.
+  Set<String> cached() {
+    try {
+      return {
+        for (final row in ref
+            .read(lanisDatabaseProvider)
+            .listAppletOfflineData(accountId: account.localId))
+          row.appletId,
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  if (session == null) return cached();
   final type = account.accountType ?? session.accountTypeOrNull;
-  if (type == null) return const {};
-  return {
+  if (type == null) return cached();
+  final supported = {
     for (final applet in Applets.all)
       if (session.doesSupportFeature(applet, overrideAccountType: type))
         applet.appletPhpUrl,
   };
+  return supported.isEmpty ? cached() : supported;
 }

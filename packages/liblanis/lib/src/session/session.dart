@@ -17,6 +17,28 @@ import '../models/account.dart';
 import '../models/account_types.dart';
 import 'cryptor.dart';
 
+/// Verbindungs-/Serverprobleme (Netz weg, Zeitüberschreitung, 5xx des Portals).
+bool _isTransportFailure(Object error) {
+  if (error is NoConnectionException || error is LanisDownException) {
+    return true;
+  }
+  if (error is! DioException) return false;
+  switch (error.type) {
+    case DioExceptionType.connectionTimeout:
+    case DioExceptionType.receiveTimeout:
+    case DioExceptionType.sendTimeout:
+    case DioExceptionType.connectionError:
+      return true;
+    case DioExceptionType.badResponse:
+      return const {408, 502, 503, 504}.contains(error.response?.statusCode);
+    case DioExceptionType.unknown:
+      final inner = error.error;
+      return inner is SocketException || inner is HttpException;
+    default:
+      return false;
+  }
+}
+
 /// Authenticated SPH HTTP session for one account.
 class LanisSession {
   final ClearTextAccount account;
@@ -28,6 +50,12 @@ class LanisSession {
   final Dio dio = Dio();
   Timer? preventLogoutTimer;
   Future<void>? _authentication;
+  bool _disposed = false;
+  int _lifecycleGeneration = 0;
+  int _authGeneration = 0;
+
+  /// Incremented after each successful authentication.
+  int get authGeneration => _authGeneration;
 
   Map<String, String> userData = {};
   AccountType? _accountType;
@@ -53,16 +81,24 @@ class LanisSession {
     dio.interceptors.add(
       InterceptorsWrapper(
         onResponse: (response, handler) {
-          if (response.data != null) {
+          if (response.data != null && response.statusCode != 503) {
             connectionChecker.status = ConnectionStatus.connected;
           } else {
             connectionChecker.status = ConnectionStatus.disconnected;
           }
+          if (response.statusCode == 503) {
+            return handler.reject(
+              DioException.badResponse(
+                statusCode: 503,
+                requestOptions: response.requestOptions,
+                response: response,
+              ),
+            );
+          }
           return handler.next(response);
         },
         onError: (error, handler) {
-          if (error.type == DioExceptionType.connectionTimeout ||
-              error.type == DioExceptionType.receiveTimeout) {
+          if (_isTransportFailure(error)) {
             connectionChecker.status = ConnectionStatus.disconnected;
           }
           return handler.next(error);
@@ -97,6 +133,42 @@ class LanisSession {
         status != null && (status == 200 || status == 302 || status == 503);
   }
 
+  /// Re-authenticates once if the session has not already been refreshed since
+  /// [observedGeneration]. Concurrent callers observing the same stale
+  /// generation share a single in-flight re-authentication instead of wiping
+  /// the fresh cookie jar and encryption key back-to-back.
+  Future<void> reauthenticateIfStale(int observedGeneration) async {
+    while (true) {
+      final inFlight = _authentication;
+      if (inFlight != null) {
+        await inFlight;
+        if (_authGeneration != observedGeneration) return;
+        continue;
+      }
+      if (_authGeneration != observedGeneration) return;
+      await authenticate();
+      return;
+    }
+  }
+
+  Future<void> _runAuthenticate({
+    required bool withoutData,
+    String? withLoginUrl,
+  }) async {
+    try {
+      await _authenticate(
+        withoutData: withoutData,
+        withLoginUrl: withLoginUrl,
+      );
+    } on LanisException {
+      rethrow;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 503) throw LanisDownException();
+      if (_isTransportFailure(e)) throw NoConnectionException();
+      throw UnknownException(e.message ?? e.toString());
+    }
+  }
+
   Future<void> authenticate({
     bool withoutData = false,
     String? withLoginUrl,
@@ -110,24 +182,17 @@ class LanisSession {
         // A previous caller's failure must not prevent this caller from retrying.
       }
     }
-    final authentication = _authenticate(
+    final authentication = _runAuthenticate(
       withoutData: withoutData,
       withLoginUrl: withLoginUrl,
     );
     _authentication = authentication;
     try {
       await authentication;
-    } on LanisException {
-      rethrow;
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.connectionError) {
-        throw NoConnectionException();
-      }
-      throw UnknownException(e.message ?? e.toString());
     } finally {
-      _authentication = null;
+      if (identical(_authentication, authentication)) {
+        _authentication = null;
+      }
     }
   }
 
@@ -135,10 +200,17 @@ class LanisSession {
     bool withoutData = false,
     String? withLoginUrl,
   }) async {
+    final generation = _lifecycleGeneration;
+    if (_disposed) {
+      throw StateError('LanisSession has been disposed');
+    }
+
     if (!(await connectionChecker.connected)) {
       throw NoConnectionException();
     }
 
+    preventLogoutTimer?.cancel();
+    preventLogoutTimer = null;
     jar.deleteAll();
     dio.options.validateStatus = (status) =>
         status != null && (status == 200 || status == 302 || status == 503);
@@ -154,28 +226,69 @@ class LanisSession {
     }
 
     final loginURL = withLoginUrl ?? await getLoginURL(account, config);
-    await dio.get(loginURL);
-
-    preventLogoutTimer?.cancel();
-    preventLogoutTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => preventLogout(),
-    );
+    final loginResponse = await dio.get(loginURL);
+    _checkLoginResponse(loginResponse);
 
     travelMenu = await getFastTravelMenu();
+
+    if (!_disposed && generation == _lifecycleGeneration) {
+      preventLogoutTimer?.cancel();
+      preventLogoutTimer = Timer.periodic(
+        const Duration(seconds: 10),
+        (_) => preventLogout(),
+      );
+    }
+
     if (!withoutData) {
       final response = await dio.get(
         'https://start.schulportal.hessen.de/benutzerverwaltung.php?a=userData',
       );
-      userData = parseUserData(parse(response.data));
-      _accountType = parseAccountType(parse(response.data));
+      if (response.statusCode == 302) {
+        final location = response.headers.value(HttpHeaders.locationHeader);
+        if (location != null) {
+          final target = response.requestOptions.uri.resolve(location);
+          if (target.origin == response.requestOptions.uri.origin &&
+              target.path == '/benutzerverwaltung.php' &&
+              target.queryParameters['a'] == 'userChangePassword') {
+            throw PasswordChangeRequiredException();
+          }
+        }
+        throw UnauthorizedException('User data request redirected');
+      }
+      final document = parse(response.data);
+      userData = parseUserData(document);
+      _accountType = parseAccountType(document);
     }
 
     await cryptor.initialize(dio);
+    _authGeneration++;
+  }
+
+  void _checkLoginResponse(Response<dynamic> response) {
+    var body = response.data;
+    if (body is String && body.trimLeft().startsWith('{')) {
+      try {
+        body = jsonDecode(body);
+      } on FormatException {
+        return;
+      }
+    }
+    if (body is! Map || body['back'] != false) return;
+
+    final message = body['text'];
+    if (message is! String) return;
+    if (message.contains('keine Lernenden hinterlegt')) {
+      throw ParentAccountWithoutLearnersException();
+    }
+    if (message.contains('durch den schulischen Admin gesperrt')) {
+      throw AccountDisabledException();
+    }
   }
 
   Future<void> deAuthenticate() async {
+    _lifecycleGeneration++;
     preventLogoutTimer?.cancel();
+    preventLogoutTimer = null;
     try {
       await dio.get('https://start.schulportal.hessen.de/index.php?logout=all');
     } catch (_) {}
@@ -284,7 +397,32 @@ class LanisSession {
     final response = await dio.get(
       'https://start.schulportal.hessen.de/startseite.php?a=ajax&f=apps',
     );
-    return jsonDecode(response.data.toString())['entrys'] as List<dynamic>;
+    final location = response.headers.value(HttpHeaders.locationHeader);
+    if (response.statusCode == 302) {
+      if (location != null) {
+        final target = response.requestOptions.uri.resolve(location);
+        if (target.origin == response.requestOptions.uri.origin &&
+            target.path == '/benutzerverwaltung.php' &&
+            target.queryParameters['a'] == 'userChangePassword') {
+          throw PasswordChangeRequiredException();
+        }
+      }
+      throw UnauthorizedException('Fast-travel menu request redirected');
+    }
+    final dynamic decoded;
+    if (response.data is Map) {
+      decoded = response.data;
+    } else {
+      final body = response.data?.toString() ?? '';
+      if (body.trim().isEmpty) {
+        throw UnknownException('Empty fast-travel menu response');
+      }
+      decoded = jsonDecode(body);
+    }
+    if (decoded is! Map || decoded['entrys'] is! List) {
+      throw UnknownException('Unexpected fast-travel menu response');
+    }
+    return decoded['entrys'] as List<dynamic>;
   }
 
   Map<String, String> parseUserData(Document document) {
@@ -296,18 +434,26 @@ class LanisSession {
 
     final result = <String, String>{};
     for (final row in userDataTableBody.querySelectorAll('tr')) {
+      if (row.children.length < 2) continue;
       var key = row.children[0].text.trim();
       final value = row.children[1].text.trim();
-      key = key.substring(0, key.length - 1).toLowerCase();
-      result[key] = value;
+      if (key.isEmpty) continue;
+      if (key.endsWith(':')) {
+        key = key.substring(0, key.length - 1);
+      }
+      result[key.toLowerCase()] = value;
     }
     return result;
   }
 
   AccountType parseAccountType(Document document) {
-    final iconClassList = document
-        .querySelector('.nav.navbar-nav.navbar-right>li>a>i')!
-        .classes;
+    final iconElement = document.querySelector(
+      '.nav.navbar-nav.navbar-right>li>a>i',
+    );
+    if (iconElement == null) {
+      throw UnknownException('Missing account type icon in user data page');
+    }
+    final iconClassList = iconElement.classes;
     if (iconClassList.contains('fa-child')) {
       return AccountType.student;
     } else if (iconClassList.contains('fa-user-circle')) {
@@ -332,7 +478,10 @@ class LanisSession {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
+    _lifecycleGeneration++;
     preventLogoutTimer?.cancel();
+    preventLogoutTimer = null;
     _closeDioWithoutSharedAdapter(dio, config.httpAdapter);
   }
 

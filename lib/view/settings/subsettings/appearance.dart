@@ -320,11 +320,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
   bool get _labels =>
       (_p['nav-labels'] ?? (_t['nav-labels'] as bool ? '1' : '0')) != '0';
 
-  bool get _greyCancelled =>
-      (_p['tt-grey-cancelled'] ??
-          (_t['tt-grey-cancelled'] as bool ? '1' : '0')) !=
-      '0';
-
   bool get _center =>
       (_p['look-center'] ?? (_t['look-center'] as bool ? '1' : '0')) == '1';
 
@@ -338,6 +333,16 @@ class _LookSectionState extends ConsumerState<_LookSection> {
   }
 
   void _set(String key, String value) => setState(() => _p[key] = value);
+
+  /// Verschiebt einen Eintrag der Leiste an die Stelle eines anderen.
+  void _reorder(String from, String to) {
+    final list = [..._order];
+    final i = list.indexOf(from);
+    final j = list.indexOf(to);
+    if (i < 0 || j < 0 || i == j) return;
+    list.insert(j, list.removeAt(i));
+    _set('nav-order', list.join(','));
+  }
 
   void _apply() {
     final shared = ref.read(sharedOverAccountSettingsProvider);
@@ -361,7 +366,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
   /// Einstellungen der unteren Leiste, oben IN der Vorschau (nutzt deren Stil).
   Widget _navControls(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final order = _order;
     return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -372,46 +376,14 @@ class _LookSectionState extends ConsumerState<_LookSection> {
               onChanged: (v) => _set('nav-labels', v ? '1' : '0'),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'Reihenfolge: Einträge halten und ziehen',
+                'Reihenfolge ändern: unten in der Leiste einen Eintrag gedrückt halten und verschieben.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
               ),
             ),
-            SizedBox(
-              height: 56,
-              child: ReorderableListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                buildDefaultDragHandles: false,
-                onReorder: (from, to) {
-                  final list = [...order];
-                  if (to > from) to -= 1;
-                  list.insert(to, list.removeAt(from));
-                  _set('nav-order', list.join(','));
-                },
-                children: [
-                  for (var i = 0; i < order.length; i++)
-                    ReorderableDragStartListener(
-                      key: ValueKey(order[i]),
-                      index: i,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 8,
-                        ),
-                        child: Chip(
-                          avatar: const Icon(Icons.drag_indicator_rounded, size: 18),
-                          label: Text(_navLabels[order[i]]!),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
           ],
     );
   }
@@ -452,6 +424,7 @@ class _LookSectionState extends ConsumerState<_LookSection> {
             center: _center,
             labels: _labels,
             order: _order,
+            onReorder: _reorder,
             controls: Builder(builder: _navControls),
           ),
         ),
@@ -605,13 +578,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
           display: (v) => '${(v * 100).round()} %',
           onChanged: (v) => _set('tt-intensity', v.toStringAsFixed(2)),
         ),
-        SwitchListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          title: const Text('Ausfall grau anzeigen'),
-          subtitle: const Text('Entfallende Stunden werden im Stundenplan grau'),
-          value: _greyCancelled,
-          onChanged: (v) => _set('tt-grey-cancelled', v ? '1' : '0'),
-        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           child: OutlinedButton.icon(
@@ -636,6 +602,7 @@ class _Preview extends StatelessWidget {
   final bool labels;
   final List<String> order;
   final Widget? controls;
+  final void Function(String fromKey, String toKey)? onReorder;
 
   const _Preview({
     required this.seed,
@@ -647,6 +614,7 @@ class _Preview extends StatelessWidget {
     required this.labels,
     required this.order,
     this.controls,
+    this.onReorder,
   });
 
   /// "Start" ist in der Vorschau markiert (wie auf Bild der echten Leiste).
@@ -769,6 +737,7 @@ class _Preview extends StatelessWidget {
                       activeIndex: _activeIndex,
                       showLabels: labels,
                       onSelect: (_) {},
+                      onReorder: onReorder,
                     ),
                   ),
                 ],

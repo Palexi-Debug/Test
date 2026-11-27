@@ -12,7 +12,10 @@ const ttSyncKeys = ['custom-lessons', 'hidden-lessons', 'lesson-colors'];
 
 /// Handy: schickt eigene Stunden, ausgeblendete Stunden und Farben an die Uhr.
 /// Still im Hintergrund, Fehler werden ignoriert (Uhr evtl. nicht verbunden).
-Future<void> syncTimetableToWatch(TypedSettings settings) async {
+Future<void> syncTimetableToWatch(
+  TypedSettings settings, {
+  Map<String, dynamic>? extra,
+}) async {
   try {
     final watch = WatchConnectivity();
     if (!await watch.isPaired) return;
@@ -22,12 +25,66 @@ Future<void> syncTimetableToWatch(TypedSettings settings) async {
       'hidden': settings.getJsonList('${_ttPrefix}hidden-lessons') ?? [],
       'colors': settings.getJsonMap('${_ttPrefix}lesson-colors') ?? {},
       'ts': DateTime.now().millisecondsSinceEpoch,
+      ...?extra,
     };
     await watch.updateApplicationContext(payload);
     if (await watch.isReachable) {
       await watch.sendMessage(payload);
     }
   } catch (_) {}
+}
+
+const _cacheIds = ['stundenplan.php', 'vertretungsplan.php'];
+
+/// Handy: schickt den gespeicherten Stundenplan und Vertretungsplan an die
+/// Uhr (Zwischenspeicher für schlechtes WLAN). Fehler werden ignoriert.
+Future<void> syncCacheToWatch(WidgetRef ref) async {
+  try {
+    final acc = ref.read(activeAccountProvider);
+    final settings = ref.read(accountSpecificSettingsProvider);
+    if (acc == null || settings == null) return;
+    final db = ref.read(lanisDatabaseProvider);
+    final cache = <String, dynamic>{};
+    for (final id in _cacheIds) {
+      final d = db.getAppletOfflineData(accountId: acc.localId, appletId: id);
+      if (d != null) {
+        cache[id] = {
+          'json': d.json,
+          'ts': d.timestamp.millisecondsSinceEpoch,
+        };
+      }
+    }
+    if (cache.isEmpty) return;
+    await syncTimetableToWatch(settings, extra: {'cache': cache});
+  } catch (_) {}
+}
+
+/// Uhr: legt den vom Handy gesendeten Zwischenspeicher ab, wenn er neuer ist
+/// als der eigene. Die Uhr zeigt ihn dann auch ohne eigenes Netz.
+void applyCacheFromPhone(
+  Map<String, dynamic> m,
+  LanisDatabase db,
+  int? accountId,
+) {
+  final cache = m['cache'];
+  if (cache is! Map || accountId == null) return;
+  for (final id in _cacheIds) {
+    final e = cache[id];
+    if (e is! Map) continue;
+    try {
+      final json = e['json'] as String;
+      final ts = DateTime.fromMillisecondsSinceEpoch((e['ts'] as num).toInt());
+      final mine = db.getAppletOfflineData(accountId: accountId, appletId: id);
+      if (mine == null || ts.isAfter(mine.timestamp)) {
+        db.setAppletOfflineData(
+          accountId: accountId,
+          appletId: id,
+          json: json,
+          timestamp: ts,
+        );
+      }
+    } catch (_) {}
+  }
 }
 
 /// Uhr: übernimmt die vom Handy gesendeten Stundenplan-Einstellungen.
