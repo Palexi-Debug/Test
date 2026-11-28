@@ -182,17 +182,18 @@ class _StudentTimetableBetterViewState
               } catch (_) {}
             }
 
-            // Homescreen-Widget mit dem aktuellen Wochenplan versorgen.
-            if (weekSelection.mode == TimetableWeekMode.current) {
-              updateScheduleWidget(selectedPlan, weekStart);
-            }
-
             TimeTableData data = TimeTableData(
               selectedPlan,
               timetable,
               settings,
               selectedBadge,
             );
+
+            // Homescreen-Widget mit dem aktuellen Wochenplan versorgen (nur die
+            // gewählte G/U-Woche, ohne ausgeblendete Stunden).
+            if (weekSelection.mode == TimetableWeekMode.current) {
+              updateScheduleWidget(data.timetableDays, weekStart);
+            }
 
             final appBar = AppBar(
               title: Text(timeTableDefinition.label(context)),
@@ -268,10 +269,14 @@ class _StudentTimetableBetterViewState
                               onPressed: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => WeekPreviewPage(
-                                    plan: selectedPlan,
+                                    // Gefilterter Plan (nur die gewählte Woche,
+                                    // ohne ausgeblendete Stunden), sonst liegen
+                                    // G- und U-Stunden übereinander.
+                                    plan: data.timetableDays,
                                     hours: timetable.hours ??
                                         const <TimeTableRow>[],
                                     weekStart: weekStart,
+                                    settings: settings,
                                     weekBadge: selectedBadge,
                                   ),
                                 ),

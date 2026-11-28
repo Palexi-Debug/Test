@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:lanis/applets/timetable/student/cancelled.dart';
+import 'package:lanis/applets/timetable/student/timetable_helper.dart';
 import 'package:liblanis/liblanis.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -16,12 +18,14 @@ class WeekPreviewPage extends StatefulWidget {
   final List<TimeTableRow> hours;
   final DateTime weekStart;
   final String? weekBadge;
+  final Map<String, dynamic> settings;
 
   const WeekPreviewPage({
     super.key,
     required this.plan,
     required this.hours,
     required this.weekStart,
+    required this.settings,
     this.weekBadge,
   });
 
@@ -73,9 +77,7 @@ class _WeekPreviewPageState extends State<WeekPreviewPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final title = widget.weekBadge != null && widget.weekBadge!.isNotEmpty
-        ? 'Wochenübersicht · ${widget.weekBadge}-Woche'
-        : 'Wochenübersicht';
+    const title = 'Wochenübersicht';
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
@@ -108,6 +110,8 @@ class _WeekPreviewPageState extends State<WeekPreviewPage> {
                     weekStart: widget.weekStart,
                     dayCount: _dayCount,
                     dayNames: _dayNames,
+                    settings: widget.settings,
+                    weekBadge: widget.weekBadge,
                   ),
                 ),
               ),
@@ -122,6 +126,8 @@ class _Grid extends StatelessWidget {
   final DateTime weekStart;
   final int dayCount;
   final List<String> dayNames;
+  final Map<String, dynamic> settings;
+  final String? weekBadge;
 
   const _Grid({
     required this.plan,
@@ -129,9 +135,24 @@ class _Grid extends StatelessWidget {
     required this.weekStart,
     required this.dayCount,
     required this.dayNames,
+    required this.settings,
+    required this.weekBadge,
   });
 
-  static const double _headerH = 34;
+  /// Gleiche Farbgebung wie im Stundenplan (gedämpfte Fachfarbe).
+  Color _lessonColor(BuildContext context, TimetableSubject l) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final seed = TimeTableHelper.getColorForLesson(settings, l);
+    final hsl = HSLColor.fromColor(seed);
+    return hsl
+        .withSaturation(math.min(hsl.saturation, 0.5))
+        .withLightness(
+          dark ? 0.30 + hsl.lightness * 0.14 : 0.74 + hsl.lightness * 0.12,
+        )
+        .toColor();
+  }
+
+  static const double _headerH = 44;
   static const double _rowH = 58;
   static const double _timeW = 40;
 
@@ -167,12 +188,43 @@ class _Grid extends StatelessWidget {
               top: 0,
               width: colW,
               height: _headerH,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    dayNames[d],
+                    style: text.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: today ? scheme.primary : scheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    '${date.day}.${date.month}.',
+                    style: text.labelSmall?.copyWith(
+                      fontSize: 10,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Ecke oben links: G-/U-Woche
+        if ((weekBadge ?? '').isNotEmpty) {
+          children.add(
+            Positioned(
+              left: 0,
+              top: 0,
+              width: _timeW,
+              height: _headerH,
               child: Center(
                 child: Text(
-                  '${dayNames[d]} ${date.day}.${date.month}.',
-                  style: text.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: today ? scheme.primary : scheme.onSurfaceVariant,
+                  '$weekBadge-Wo.',
+                  style: text.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -228,14 +280,12 @@ class _Grid extends StatelessWidget {
             final changed = l.substituted && !cancelled;
             final bg = cancelled
                 ? scheme.surfaceContainerHighest
-                : changed
-                ? scheme.tertiaryContainer
-                : scheme.primaryContainer;
+                : _lessonColor(context, l);
             final fg = cancelled
                 ? scheme.onSurfaceVariant
-                : changed
-                ? scheme.onTertiaryContainer
-                : scheme.onPrimaryContainer;
+                : (ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
+                      ? Colors.white
+                      : Colors.black87);
             children.add(
               Positioned(
                 left: _timeW + d * colW + 2,
@@ -247,6 +297,9 @@ class _Grid extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: bg,
                     borderRadius: BorderRadius.circular(8),
+                    border: changed
+                        ? Border.all(color: scheme.tertiary, width: 2)
+                        : null,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +325,17 @@ class _Grid extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: text.labelSmall?.copyWith(
                             fontSize: 10,
-                            color: fg.withValues(alpha: 0.8),
+                            color: fg.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      if ((l.lehrer ?? '').trim().isNotEmpty)
+                        Text(
+                          l.lehrer!.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: fg.withValues(alpha: 0.7),
                           ),
                         ),
                     ],
