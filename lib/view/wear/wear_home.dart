@@ -1,3 +1,4 @@
+import 'package:lanis/core/school_schedule.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -405,7 +406,7 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
     String weekBadge,
   ) {
     final now = DateTime.now();
-    final nowMin = now.hour * 60 + now.minute;
+    final nowMin = SchoolSchedule.minutesOf(now);
     final today = _lessonsOf(plan, now.weekday - 1);
 
     TimetableSubject? current;
@@ -510,7 +511,7 @@ class _WearTimetablePageState extends ConsumerState<_WearTimetablePage>
     String weekBadge,
   ) {
     final now = DateTime.now();
-    final nowMin = now.hour * 60 + now.minute;
+    final nowMin = SchoolSchedule.minutesOf(now);
     var day = now.weekday - 1;
     var lessons = _lessonsOf(plan, day);
     // Nach Schulschluss oder am Wochenende den nächsten Schultag zeigen.

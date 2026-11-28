@@ -464,15 +464,20 @@ class _BarButton extends StatelessWidget {
                 const SizedBox(height: 4),
                 AnimatedDefaultTextStyle(
                   duration: fast,
-                  style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                  style: Theme.of(context).textTheme.labelSmall!.copyWith(
                     color: color,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(item.label, maxLines: 1, softWrap: false),
+                  // Seitlicher Abstand, damit lange Namen ("Vertretungen")
+                  // nicht an den Nachbarn oder den Rand stoßen.
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(item.label, maxLines: 1, softWrap: false),
+                      ),
                     ),
                   ),
                 ),

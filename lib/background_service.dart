@@ -186,46 +186,55 @@ Future<void> callbackDispatcher() async {
 
         var authenticated = false;
 
-        for (final applet in AppDefinitions.applets.where(
-          (a) => a.notificationTask != null,
-        )) {
-          final accountType = account.accountType ?? AccountType.student;
+        final accountType = account.accountType ?? AccountType.student;
+        final candidates = AppDefinitions.applets.where((a) {
+          if (a.notificationTask == null) return false;
           final enabled =
-              settings.getBool('notification-${applet.appletPhpUrl}') ?? true;
-          if (!applet.supportedAccountTypes.contains(accountType) ||
-              !enabled) {
-            continue;
-          }
+              settings.getBool('notification-${a.appletPhpUrl}') ?? true;
+          return enabled && a.supportedAccountTypes.contains(accountType);
+        }).toList();
 
-          if (!authenticated) {
-            await container
-                .read(sessionProvider.notifier)
-                .authenticate(withoutData: true);
-            authenticated = true;
-          }
+        if (candidates.isNotEmpty) {
+          await container
+              .read(sessionProvider.notifier)
+              .authenticate(withoutData: true);
+          authenticated = true;
 
           final session = container.read(sessionProvider).asData?.value;
-          if (session == null) continue;
-          if (!session.doesSupportFeature(
-            Applets.byPhpUrl(applet.appletPhpUrl),
-            overrideAccountType: accountType,
-          )) {
-            continue;
+          if (session != null) {
+            // Die Applet-Prüfungen laufen parallel (eine Sitzung, mehrere
+            // Anfragen gleichzeitig): so ist das WLAN-Modul kürzer aktiv,
+            // das spart Akku. Ein Fehler stoppt die anderen nicht.
+            final tasks = <Future<void>>[];
+            for (final applet in candidates) {
+              if (!session.doesSupportFeature(
+                Applets.byPhpUrl(applet.appletPhpUrl),
+                overrideAccountType: accountType,
+              )) {
+                continue;
+              }
+              tasks.add(
+                applet.notificationTask!(
+                  container,
+                  accountType,
+                  BackgroundTaskToolkit(
+                    accountId: account.localId,
+                    username: account.username,
+                    schoolName: account.schoolName,
+                    settings: settings,
+                    appletId: applet.appletPhpUrl,
+                    multiAccount: accounts.length > 1,
+                  ),
+                ).catchError((Object e, StackTrace st) {
+                  backgroundLogger.e(
+                    'Applet ${applet.appletPhpUrl} failed: $e',
+                    stackTrace: st,
+                  );
+                }),
+              );
+            }
+            await Future.wait(tasks);
           }
-
-          // One shared session/Dio — run applet tasks sequentially.
-          await applet.notificationTask!(
-            container,
-            accountType,
-            BackgroundTaskToolkit(
-              accountId: account.localId,
-              username: account.username,
-              schoolName: account.schoolName,
-              settings: settings,
-              appletId: applet.appletPhpUrl,
-              multiAccount: accounts.length > 1,
-            ),
-          );
         }
         // Garmin-Uhr im Hintergrund abgleichen (nur wenn aktiviert).
         if (container

@@ -23,6 +23,11 @@ jobs:
           cache: true
       - run: flutter config --enable-macos-desktop
       - run: flutter create --platforms=macos --project-name lanis .
+      - name: App heißt Schulportal.app
+        shell: bash
+        run: |
+          sed -i.bak 's/^PRODUCT_NAME = .*/PRODUCT_NAME = Schulportal/' macos/Runner/Configs/AppInfo.xcconfig
+          grep -n PRODUCT_NAME macos/Runner/Configs/AppInfo.xcconfig
       - run: flutter pub get
       - run: dart run intl_utils:generate
       - run: flutter build macos --release --dart-define=BUILD_ID=${{ env.BUILD_ID }}

@@ -11,6 +11,10 @@ import 'package:lanis/utils/logger.dart';
 /// Repo, in dem die Builds als GitHub-Releases veröffentlicht werden.
 const updateRepo = 'Palexi-Debug/Test';
 
+/// Compile-Time-Flag für Play-Store-Builds (`--dart-define=PLAY_STORE=true`):
+/// schaltet die eigene Update-Suche und den Download ab.
+const bool kIsPlayStore = bool.fromEnvironment('PLAY_STORE');
+
 /// Build-Nummer dieser App (kommt aus dem CI-Lauf, lokal "dev").
 const currentBuildId = String.fromEnvironment('BUILD_ID', defaultValue: '0');
 
@@ -42,19 +46,22 @@ String? _desktopChannel() {
 /// Fragt das neueste Release ab. Funktioniert nur, wenn das Repo öffentlich
 /// ist (oder die Releases sonst ohne Anmeldung erreichbar sind).
 Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
+  if (kIsPlayStore) return const UpdateCheck(UpdateCheckResult.upToDate);
   try {
-    final channel = wear ? null : _desktopChannel();
+    // Immer die Liste abfragen und strikt nach dem Tag-Präfix der eigenen
+    // Plattform filtern ("latest" kann ein Release einer anderen Plattform
+    // sein). Handy und Uhr nutzen "build-", Desktop "windows-"/"macos-".
+    final desktop = wear ? null : _desktopChannel();
+    final channel = desktop ?? 'build';
     final response = await Dio().get(
-      channel == null
-          ? 'https://api.github.com/repos/$updateRepo/releases/latest'
-          : 'https://api.github.com/repos/$updateRepo/releases?per_page=30',
+      'https://api.github.com/repos/$updateRepo/releases?per_page=30',
       options: Options(
         receiveTimeout: const Duration(seconds: 10),
         sendTimeout: const Duration(seconds: 10),
       ),
     );
     var data = response.data;
-    if (channel != null && data is List) {
+    if (data is List) {
       data = data.firstWhere(
         (r) =>
             r is Map &&
@@ -81,7 +88,7 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
       for (final a in assets) {
         final name = (a['name'] ?? '').toString();
         final isWear = name.toLowerCase().contains('wear');
-        if (!name.endsWith(channel == null ? '.apk' : '.zip') || isWear != wear) {
+        if (!name.endsWith(desktop == null ? '.apk' : '.zip') || isWear != wear) {
           continue;
         }
         // 1. Durchlauf: genau passende ABI; 2. Durchlauf: irgendeine Datei.
@@ -206,6 +213,7 @@ Future<String?> downloadAndInstall(
   UpdateInfo info,
   void Function(double progress) onProgress,
 ) async {
+  if (kIsPlayStore) return 'Updates kommen über den Google Play Store.';
   if (_desktopChannel() != null) {
     // Desktop: Download im Browser starten, Installation von Hand.
     final ok = await launchUrl(

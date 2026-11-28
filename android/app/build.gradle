@@ -28,7 +28,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.example.app"
+    namespace "de.palexi.schulportal"
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 

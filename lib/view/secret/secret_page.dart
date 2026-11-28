@@ -300,7 +300,11 @@ class _SecretLogoPageState extends State<SecretLogoPage>
                 child: AnimatedBuilder(
                   animation: _pulse,
                   builder: (context, _) =>
-                      CustomPaint(painter: _RingsPainter(_pulse.value, w ? 0.4 : 1.0)),
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: _RingsPainter(_pulse.value, w ? 0.4 : 1.0),
+                        ),
+                      ),
                 ),
               ),
               Center(
