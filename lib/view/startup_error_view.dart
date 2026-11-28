@@ -145,14 +145,14 @@ void forceReset() async {
 void sendEmail(FlutterErrorDetails errorDetails) async {
   final errorReport = await generateErrorReport(errorDetails);
 
-  final emailUri = Uri(
-    scheme: 'mailto',
-    path: 'lanis-mobile@alessioc42.dev',
-    queryParameters: {
-      'subject': '[FEHLERBERICHT] ${errorDetails.exceptionAsString()}',
-      'body': '\n\n\n$errorReport',
-    },
-  );
+  // Fehlerbericht als GitHub-Issue dieses Projekts (nicht an den Upstream).
+  final body = errorReport.length > 4000
+      ? errorReport.substring(0, 4000)
+      : errorReport;
+  final issueUri = Uri.https('github.com', '/Palexi-Debug/Test/issues/new', {
+    'title': '[FEHLERBERICHT] ${errorDetails.exceptionAsString()}',
+    'body': '\n\n\n$body',
+  });
 
-  await safeLaunchUrl(emailUri);
+  await safeLaunchUrl(issueUri);
 }

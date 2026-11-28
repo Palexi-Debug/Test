@@ -22,7 +22,9 @@ class BookLogo extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(painter: _BookPainter(progress, withBackground)),
+      child: RepaintBoundary(
+        child: CustomPaint(painter: _BookPainter(progress, withBackground)),
+      ),
     );
   }
 }

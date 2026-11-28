@@ -63,7 +63,7 @@ class AppletErrorView extends StatelessWidget {
               OutlinedButton(
                 onPressed: () {
                   safeLaunchUrl(
-                    Uri.parse("https://github.com/lanis-mobile/lanis/issues"),
+                    Uri.parse("https://github.com/Palexi-Debug/Test/issues"),
                     context: context,
                   );
                 },

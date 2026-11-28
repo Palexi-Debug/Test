@@ -331,7 +331,7 @@ AlertDialog errorDialog(BuildContext context) => AlertDialog(
     TextButton(
       onPressed: () {
         safeLaunchUrl(
-          Uri.parse("https://github.com/alessioC42/lanis-mobile/issues"),
+          Uri.parse("https://github.com/Palexi-Debug/Test/issues"),
           context: context,
         );
       },

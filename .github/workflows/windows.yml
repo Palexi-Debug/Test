@@ -23,6 +23,9 @@ jobs:
           cache: true
       - run: flutter config --enable-windows-desktop
       - run: flutter create --platforms=windows --project-name lanis .
+      - name: Programm heißt Schulportal.exe
+        shell: bash
+        run: sed -i 's/set(BINARY_NAME "lanis")/set(BINARY_NAME "Schulportal")/' windows/CMakeLists.txt && grep -n BINARY_NAME windows/CMakeLists.txt | head -3
       - run: flutter pub get
       - run: dart run intl_utils:generate
       - run: flutter build windows --release --dart-define=BUILD_ID=${{ env.BUILD_ID }}

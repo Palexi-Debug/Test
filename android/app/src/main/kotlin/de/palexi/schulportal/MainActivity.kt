@@ -1,4 +1,4 @@
-package com.example.app
+package de.palexi.schulportal
 
 import android.content.Intent
 import io.flutter.embedding.android.FlutterFragmentActivity

@@ -1,31 +1,35 @@
-# Schulportal-App (Philipp-Reis-Schule, ID 6110) - Uebergabe
+# Schulportal-App (Philipp-Reis-Schule, ID 6110) – Übergabe
 
-Repo `Palexi-Debug/Test`: `main` = native Flutter-App, `webview` = alte App, `garmin` = Garmin-Venu-Sq-2-App (eigene Doku: `garmin/HANDOFF.md` auf dem Branch).
-Gebaut wird NUR per GitHub Actions (kein Flutter lokal): "Analyze" ca. 1-2 Min, APK ca. 10 Min. Releases `build-N` mit Handy- und Wear-APK.
-Aktuell: Build 43 (v0.3.3). Versionsschema: Build 30 = 0.1.0, 40 = 0.2.0 (Zehner = Minor).
+Repo `Palexi-Debug/Test`. Gebaut wird NUR per GitHub Actions (kein Flutter lokal; "Analyze" ca. 2 Min, APK ca. 10 Min).
+Branches/Kanäle: siehe README. Ungetestet auf Geräten, sofern nicht anders vermerkt.
 
-## Fertig (alle Builds gruen, nur teils auf Geraeten getestet)
-- Eigenes Aussehen: Akzent, Radius, Dichte, Animationen, Kartenstil, Leiste sortierbar, Vorschau + Uebernehmen/Verwerfen.
-- Logo (Buch) in App, Splash, Uhr. Stundenplan: Farbintensitaet, Plus-Button fuer eigene Stunde.
-- Eigene Stunde: Tag waehlbar, Tastatur verdeckt Eingabe nicht mehr (Build 41/42, ungetestet).
-- Ausfall grau: Stunden mit "Entfall/Ausfall" im Vertretungsplan werden grau + durchgestrichen (Einstellungen > Aussehen > Stundenplan, abschaltbar). Zuordnung ueber Datum, Stundennummer, Fach (`applets/timetable/student/cancelled.dart`). Ungetestet.
-- Nachrichten: Text beim Neu-Erstellen, Umlaute (HTML-Entities), Lerngruppen-Parser null-sicher (vendored `packages/liblanis`).
-- Wear OS: Seiten Jetzt/Heute/Vertretungen/Update, Login vom Handy (`utils/watch_sync.dart`), Secret, Ladeanimation.
-  Neu: eigene + ausgeblendete Stunden + Farben werden vom Handy zur Uhr synchronisiert (`syncTimetableToWatch`, `applyTimetableFromPhone`). Ungetestet.
-- Updater: Groessenpruefung + 3 Versuche. Uhr-APK arm+arm64 (~41 MB; Galaxy Watch 5 braucht 32 Bit). Update langsam -> WLAN an der Uhr.
-- Signatur-Key fest (sha256 6d7973c4...c675).
+## Architektur (main)
+- Flutter (Riverpod, go_router), Portal-Anbindung im vendored Paket `packages/liblanis` (Basis Lanis Mobile, eigene Anpassungen).
+- Auth: `lib/features/auth/auth_controller.dart` (Offline-Start mit Cache, Retry alle 20 s; Kontoprobleme wie Passwortwechsel/Sperre → Fehlerseite mit deutscher Meldung, `lib/utils/login_errors.dart`).
+- Session (`liblanis/session/session.dart`): aus Upstream 0.3.6 übernommen (503 = Portal down, Re-Login ohne Doppelanmeldung, robuste Menü-/Benutzerdaten), Timeouts bewusst 15 s/30 s.
+- Stundenplan-Modell: Mo–Fr bleiben auch ohne Stunden erhalten (Index = Wochentag, `weekdayIndices`).
+- Uhr-Sync: `lib/utils/watch_sync.dart` (Wear OS), `garmin_sync.dart` (Garmin, Payload mit Vertretungen + Woche `wk`).
 
-## Offen / ungetestet
-- Login-Sync Handy->Uhr, Wear-Installation Build 38+, eigene Stunden auf der Uhr, Ausfall grau.
-- Garmin: siehe `garmin/HANDOFF.md`.
+## UI-Struktur
+- Startseite: `lib/view/dashboard/` – Raster-Modell in `dashboard_layout.dart` (Größe je Kachel Breite×Höhe, gespeichert in `dashboard-tile-spans`; altes `dashboard-tile-sizes` wird migriert). Zieh-Stück liegt über den Kacheln (`_ResizeHandle`, Eager-Gesten, kein Scrollen beim Ziehen), grüne Umrandung der Kachel nur, solange der Zieh-Pfeil gedrückt ist, Layout-Menü per "Layout"-Knopf.
+- Einstellungen: `lib/view/settings/settings.dart`, Gruppen Darstellung / Bereiche / Geräte & Sicherheit / Speicher & App. Eigene Seite Vertretungsplan: `applets/substitutions/substitutions_settings.dart` (Vertretungen im Stundenplan, Ausfall grau, Filter).
+- Gemeinsame Bausteine: `lib/widgets/settings_widgets.dart` (Abschnittstitel, Schalter, Auswahlleiste).
+- Aussehen: Navigationsleiste wird direkt in der Vorschau per Halten+Ziehen sortiert (`AnimatedBottomBar.onReorder`). Einstellung "Animationen" (Aus/Dezent/Lebendig) steuert Übergänge, Leiste und Logo (`AppLook`).
+- Wear OS (`lib/view/wear/`): Seiten Jetzt/Heute/Vertretungen/Update, Einstellungen (Text, Scroll-Tempo, Animationen + Tempo, Startseite, Vertretungen im Plan), Cache vom Handy, ABI-getrennte Updates.
 
-## Stand 2026-11-26 (Update nach Build 55)
+## Andere Plattformen
+- Windows/macOS: Branches `windows`/`macos`, Flutter-Test-Apps, Release `windows-N`/`macos-N` (zip, Vorabversion). Updater öffnet die Release-Seite.
+- iOS: Branch `ios`, native SwiftUI (`ios-swift/`, XcodeGen + SwiftSoup, Login/Stundenplan/Vertretungen/Update-Prüfung), unsigniertes IPA (AltStore/Sideloadly), Tag `ios-N`.
+- Garmin: Branch `garmin`, eigene Doku `garmin/HANDOFF.md`.
 
-- Offline-Start: `AuthController.bootstrap` geht bei Netz-/Portalfehler mit vorhandenem Cache in `AuthState.authenticatedOffline()` (normales Menü, Hinweis "veraltet"), Hintergrund-Retry alle 20 s.
-- Netz: Verbindungsprüfung 2 Versuche (12 s), Session-Timeouts 15 s/30 s, `AppletParser.fetchData` prüft vor "offline" einmal erneut.
-- Kacheln einzeln skalierbar (`dashboard-tile-sizes`: klein/breit/groß, Raster-Platzierung).
-- App-Sperre (`local_auth`, `lib/utils/app_lock.dart`, MainActivity = FlutterFragmentActivity).
-- Uhr: Seitenwechsel erst nach längerem Wischen, Einstellungen (Text, Vertretung im Plan), Updates getrennt `-arm64`/`-arm32` (wear.yml `--split-per-abi`, Updater wählt per `supportedAbis`).
-- Garmin 0.1.4: weiches Scrollen (Timer) im Heute-Plan, G/U im Titel (`wk`), Handy sendet Plan mit eingesetzten Vertretungen und nach Woche gefiltert.
-- Branches `windows`, `macos`, `ios`: nur Test-Workflows (flutter create --platforms, ohne Signatur); iOS-IPA unsigniert.
-- Offen: Debug-Menü zum Simulieren, Homescreen-Widget, Klausur-Erinnerung, Uhr-Zwischenspeicher vom Handy.
+## Offen
+- Homescreen-Widget, Klausur-/Termin-Erinnerung, Wochenvorschau, Stundenplan als Bild teilen, Änderungsliste beim Update.
+- Garmin: eigene Stunden, Freund-Sync (braucht neue .prg).
+- iOS: Nachrichten, Kalender u. a. noch nicht portiert; App-Sperre/Widgets fehlen.
+- Test auf Geräten: Kachel-Ziehen (Breite+Höhe), Leiste verschieben, Uhr-Animationen, schlechtes Netz, Nachrichten (äöüß/#), G/U am Wochenende.
+
+## Stand 2026-11-28 (Branch windows)
+- `main` eingemergt (Leisten-Beschriftung, Auto-Speichern Aussehen, `lib/core/school_schedule.dart`, Plattform-Updater mit Tag-Filter `windows-`, Wear-Akku, eigene Links).
+- Windows: Das Programm heißt jetzt `Schulportal.exe` (Workflow ersetzt `BINARY_NAME` nach `flutter create`).
+- Updater: unter Windows öffnet "Update" die Release-Seite (`windows-N`-Zip) im Browser.
+- Build-Status: nach dem Push in GitHub Actions prüfen (Workflow "Windows Test-App").
