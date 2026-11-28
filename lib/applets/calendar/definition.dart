@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lanis/applets/calendar/background.dart';
 import 'package:lanis/applets/calendar/calendar_view.dart';
 import 'package:lanis/applets/calendar/routes.dart';
 import 'package:lanis/applets/definitions.dart';
@@ -22,6 +23,7 @@ final calendarDefinition = AppletDefinition(
     AccountType.parent,
   ],
   allowOffline: false,
+  notificationTask: calendarBackgroundTask,
   settingsDefaults: {},
   refreshInterval: const Duration(hours: 1),
   bodyBuilder: (context, accountType, openDrawerCb) {

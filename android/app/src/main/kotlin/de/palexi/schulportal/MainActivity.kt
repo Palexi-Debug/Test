@@ -17,6 +17,20 @@ class MainActivity: FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "update" -> {
+                    val json = call.argument<String>("json")
+                    if (json != null) {
+                        ScheduleWidgetProvider.save(applicationContext, json)
+                        ScheduleWidgetProvider.refreshAll(applicationContext)
+                    }
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, STORAGE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "saveFile" -> {
@@ -64,5 +78,6 @@ class MainActivity: FlutterFragmentActivity() {
 
     companion object {
         private const val STORAGE_CHANNEL = "io.github.lanis-mobile/storage"
+        private const val WIDGET_CHANNEL = "de.palexi.schulportal/widget"
     }
 }

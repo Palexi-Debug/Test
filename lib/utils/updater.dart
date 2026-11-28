@@ -61,6 +61,28 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
       ),
     );
     var data = response.data;
+    // Änderungsliste: Notizen aller Releases, die neuer sind als dieser Build.
+    String? changelog;
+    if (data is List) {
+      final installed = int.tryParse(currentBuildId) ?? 0;
+      final entries = <MapEntry<int, String>>[];
+      for (final r in data) {
+        if (r is! Map || r['draft'] == true) continue;
+        final t = (r['tag_name'] ?? '').toString();
+        if (!t.startsWith('$channel-')) continue;
+        final n = int.tryParse(t.replaceAll(RegExp(r'[^0-9]'), ''));
+        final body = (r['body'] ?? '').toString().trim();
+        if (n == null || n <= installed || body.isEmpty) continue;
+        entries.add(MapEntry(n, body));
+      }
+      entries.sort((a, b) => b.key.compareTo(a.key));
+      if (entries.isNotEmpty) {
+        changelog = entries
+            .take(25)
+            .map((e) => 'Build ${e.key}: ${e.value}')
+            .join('\n\n');
+      }
+    }
     if (data is List) {
       data = data.firstWhere(
         (r) =>
@@ -106,7 +128,12 @@ Future<UpdateCheck> checkForUpdate({bool wear = false}) async {
     if (build > mine) {
       return UpdateCheck(
         UpdateCheckResult.newer,
-        UpdateInfo(build, (data['body'] ?? '').toString(), apk, apkSize),
+        UpdateInfo(
+          build,
+          changelog ?? (data['body'] ?? '').toString(),
+          apk,
+          apkSize,
+        ),
       );
     }
     return const UpdateCheck(UpdateCheckResult.upToDate);

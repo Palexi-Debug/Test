@@ -38,3 +38,11 @@ Branches/Kanäle: siehe README. Ungetestet auf Geräten, sofern nicht anders ver
 - Namespace und Kotlin-Package: `de.palexi.schulportal` (applicationId war schon so).
 - Links auf `Palexi-Debug/Test` (Issues/Releases), Fehlerberichte als GitHub-Issue statt Mail an Upstream; Hinweis "inoffizieller Client" in "Über" und "Version".
 - Build-Status: Push 7820334, CI-Ergebnis siehe GitHub Actions (Build APK + Wear OS APK).
+
+## Stand 2026-11-28 (neue Funktionen)
+- **Änderungsliste beim Update:** `updater.dart` sammelt die Release-Notizen aller `build-N`-Releases, die neuer sind als der installierte Build (max. 25), und zeigt sie im Update-Dialog.
+- **Wochenübersicht + Bild teilen:** `lib/applets/timetable/student/week_preview.dart`, geöffnet über das Wochen-Symbol in der Stundenplan-Leiste. Raster Mo–Fr (Sa/So nur mit Stunden) mit eingesetzten Vertretungen und ausgegrauten Ausfällen; Teilen-Symbol rendert das Raster per `RepaintBoundary` als PNG (3-fach) und teilt es (`share_plus`).
+- **Termin-/Klausur-Erinnerung:** `lib/applets/calendar/background.dart` (Hintergrund-Task, an `calendarDefinition.notificationTask` gehängt, deshalb erscheint "Kalender" unter Einstellungen > Benachrichtigungen). Erinnert am Vortag ab 16 Uhr ("Morgen: …") und am Tag ab 6 Uhr ("Heute: …"). Standard nur Titel mit Klausur/Arbeit/Test/Prüfung/…; Schalter "Kalender: auch normale Termine erinnern" (`calendar-remind-all`) schaltet alle ein. Läuft mit dem normalen Hintergrund-Takt, keine exakten Alarme.
+- **Homescreen-Widget (Android):** `ScheduleWidgetProvider.kt` + `res/layout/schedule_widget.xml`, `res/xml/schedule_widget_info.xml`, Receiver im Manifest. Die App schickt den Wochenplan als JSON über den Kanal `de.palexi.schulportal/widget` (`lib/utils/schedule_widget.dart`, aufgerufen aus der Stundenplan-Ansicht), das Widget rechnet die laufende/nächste Stunde selbst aus (Aktualisierung alle 30 Min. und bei jedem Öffnen des Stundenplans). Klick öffnet die App. Hinweis: Plan kommt nur, wenn der Stundenplan (aktuelle Woche) geöffnet wurde.
+- **Nicht umgesetzt:** Garmin-Freunde-Sync / eigene Stunden auf der Uhr (braucht neue Nachrichtenstruktur + neue .prg).
+- Build-Status: nach dem Push in GitHub Actions prüfen.

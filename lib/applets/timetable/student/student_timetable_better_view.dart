@@ -17,6 +17,8 @@ import 'package:lanis/generated/l10n.dart';
 import 'package:lanis/widgets/combined_applet_builder.dart';
 import 'package:lanis/widgets/week_badge.dart';
 import 'package:lanis/applets/timetable/student/apply_substitutions.dart';
+import 'package:lanis/applets/timetable/student/week_preview.dart';
+import 'package:lanis/utils/schedule_widget.dart';
 
 final double itemHeight = 52;
 final double headerHeight = 48;
@@ -180,6 +182,11 @@ class _StudentTimetableBetterViewState
               } catch (_) {}
             }
 
+            // Homescreen-Widget mit dem aktuellen Wochenplan versorgen.
+            if (weekSelection.mode == TimetableWeekMode.current) {
+              updateScheduleWidget(selectedPlan, weekStart);
+            }
+
             TimeTableData data = TimeTableData(
               selectedPlan,
               timetable,
@@ -256,6 +263,21 @@ class _StudentTimetableBetterViewState
                                   }),
                                 ),
                               ),
+                            IconButton(
+                              tooltip: 'Wochenübersicht / als Bild teilen',
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => WeekPreviewPage(
+                                    plan: selectedPlan,
+                                    hours: timetable.hours ??
+                                        const <TimeTableRow>[],
+                                    weekStart: weekStart,
+                                    weekBadge: selectedBadge,
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(Icons.calendar_view_week_rounded),
+                            ),
                             IconButton(
                               tooltip: (settings['single-day'] ?? true)
                                   ? 'Wochenansicht'

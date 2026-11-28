@@ -1,0 +1,294 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:lanis/applets/timetable/student/cancelled.dart';
+import 'package:liblanis/liblanis.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+/// Wochenübersicht: der ganze Stundenplan (mit eingesetzten Vertretungen und
+/// ausgegrauten Ausfällen) auf einen Blick. Über das Teilen-Symbol wird er als
+/// Bild (PNG) weitergegeben.
+class WeekPreviewPage extends StatefulWidget {
+  final List<TimetableDay> plan;
+  final List<TimeTableRow> hours;
+  final DateTime weekStart;
+  final String? weekBadge;
+
+  const WeekPreviewPage({
+    super.key,
+    required this.plan,
+    required this.hours,
+    required this.weekStart,
+    this.weekBadge,
+  });
+
+  @override
+  State<WeekPreviewPage> createState() => _WeekPreviewPageState();
+}
+
+class _WeekPreviewPageState extends State<WeekPreviewPage> {
+  final GlobalKey _boundaryKey = GlobalKey();
+  bool _sharing = false;
+
+  static const _dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+  /// Mo–Fr immer, Sa/So nur wenn dort Stunden stehen.
+  int get _dayCount {
+    var n = 5;
+    for (var d = 5; d < widget.plan.length && d < 7; d++) {
+      if (widget.plan[d].isNotEmpty) n = d + 1;
+    }
+    return n;
+  }
+
+  Future<void> _share() async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final boundary =
+          _boundaryKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) return;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/stundenplan.png');
+      await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+      await Share.shareXFiles([XFile(file.path)], text: 'Mein Stundenplan');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Das Bild konnte nicht erstellt werden.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final title = widget.weekBadge != null && widget.weekBadge!.isNotEmpty
+        ? 'Wochenübersicht · ${widget.weekBadge}-Woche'
+        : 'Wochenübersicht';
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          IconButton(
+            tooltip: 'Als Bild teilen',
+            onPressed: _sharing ? null : _share,
+            icon: _sharing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.ios_share_rounded),
+          ),
+        ],
+      ),
+      body: widget.hours.where((h) => h.type == TimeTableRowType.lesson).isEmpty
+          ? const Center(child: Text('Noch keine Stundenplan-Daten.'))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: RepaintBoundary(
+                key: _boundaryKey,
+                child: Container(
+                  color: scheme.surface,
+                  padding: const EdgeInsets.all(8),
+                  child: _Grid(
+                    plan: widget.plan,
+                    hours: widget.hours,
+                    weekStart: widget.weekStart,
+                    dayCount: _dayCount,
+                    dayNames: _dayNames,
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _Grid extends StatelessWidget {
+  final List<TimetableDay> plan;
+  final List<TimeTableRow> hours;
+  final DateTime weekStart;
+  final int dayCount;
+  final List<String> dayNames;
+
+  const _Grid({
+    required this.plan,
+    required this.hours,
+    required this.weekStart,
+    required this.dayCount,
+    required this.dayNames,
+  });
+
+  static const double _headerH = 34;
+  static const double _rowH = 58;
+  static const double _timeW = 40;
+
+  String _hm(SphTimeOfDay t) =>
+      '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final rows = hours.where((h) => h.type == TimeTableRowType.lesson).toList();
+    final now = DateTime.now();
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        final colW = (c.maxWidth - _timeW) / dayCount;
+        final children = <Widget>[];
+
+        // Kopfzeile mit den Wochentagen
+        for (var d = 0; d < dayCount; d++) {
+          final date = DateTime(
+            weekStart.year,
+            weekStart.month,
+            weekStart.day + d,
+          );
+          final today =
+              date.year == now.year &&
+              date.month == now.month &&
+              date.day == now.day;
+          children.add(
+            Positioned(
+              left: _timeW + d * colW,
+              top: 0,
+              width: colW,
+              height: _headerH,
+              child: Center(
+                child: Text(
+                  '${dayNames[d]} ${date.day}.${date.month}.',
+                  style: text.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: today ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Stundenzeiten links
+        for (var r = 0; r < rows.length; r++) {
+          children.add(
+            Positioned(
+              left: 0,
+              top: _headerH + r * _rowH,
+              width: _timeW,
+              height: _rowH,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      rows[r].label,
+                      style: text.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _hm(rows[r].startTime),
+                    style: text.labelSmall?.copyWith(
+                      fontSize: 9,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Stunden
+        for (var d = 0; d < dayCount && d < plan.length; d++) {
+          final date = DateTime(
+            weekStart.year,
+            weekStart.month,
+            weekStart.day + d,
+          );
+          for (final l in plan[d]) {
+            final r = rows.indexWhere((h) => h.startTime == l.startTime);
+            if (r < 0) continue;
+            final span = l.duration < 1 ? 1 : l.duration;
+            final cancelled = isLessonCancelled(context, l, date, hours);
+            final changed = l.substituted && !cancelled;
+            final bg = cancelled
+                ? scheme.surfaceContainerHighest
+                : changed
+                ? scheme.tertiaryContainer
+                : scheme.primaryContainer;
+            final fg = cancelled
+                ? scheme.onSurfaceVariant
+                : changed
+                ? scheme.onTertiaryContainer
+                : scheme.onPrimaryContainer;
+            children.add(
+              Positioned(
+                left: _timeW + d * colW + 2,
+                top: _headerH + r * _rowH + 2,
+                width: colW - 4,
+                height: span * _rowH - 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        (l.name ?? '').trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: fg,
+                          fontSize: 11,
+                          decoration: cancelled
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                      if ((l.raum ?? '').trim().isNotEmpty)
+                        Text(
+                          l.raum!.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: fg.withValues(alpha: 0.8),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+
+        return SizedBox(
+          width: c.maxWidth,
+          height: _headerH + rows.length * _rowH,
+          child: Stack(children: children),
+        );
+      },
+    );
+  }
+}

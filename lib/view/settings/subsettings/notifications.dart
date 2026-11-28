@@ -282,6 +282,30 @@ class _NotificationSettingsState
             ),
           ),
         ),
+        if (applets.contains('notification-kalender.php'))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: MinimalSwitchTile(
+              title: const Text('Kalender: auch normale Termine erinnern'),
+              leading: const Icon(Icons.event_available_outlined),
+              contentPadding: EdgeInsets.symmetric(horizontal: 16.0),
+              value:
+                  (accountNotificationSettings['calendar-remind-all'] ??
+                      accountSettings?.getBool('calendar-remind-all') ??
+                      false) ==
+                  true,
+              onChanged: notificationsActive
+                  ? (value) async {
+                      accountSettings?.setBool('calendar-remind-all', value);
+                      setState(() {
+                        accountNotificationSettings['calendar-remind-all'] =
+                            value;
+                      });
+                    }
+                  : null,
+              useInkWell: true,
+            ),
+          ),
         SizedBox(height: 8.0),
         const Divider(),
         Padding(
