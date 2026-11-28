@@ -207,6 +207,7 @@ class _VersionPageState extends State<VersionPage> {
               ),
             ),
           ),
+          if (!kIsPlayStore)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -255,7 +256,10 @@ class _VersionPageState extends State<VersionPage> {
                     'Diese App ist eine eigene Oberfläche für die Philipp-Reis-Schule. '
                     'Sie basiert auf dem freien Projekt Lanis Mobile (GPLv3) und '
                     'nutzt dessen Anbindung an das Schulportal Hessen. '
-                    'Danke an alle Mitwirkenden!',
+                    'Danke an alle Mitwirkenden!\n\n'
+                    'Hinweis: Das ist ein inoffizieller Open-Source-Client für '
+                    'die Philipp-Reis-Schule (Schulportal Hessen). Er wird nicht '
+                    'vom Schulportal Hessen oder der Schule betrieben.',
                     style: text.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),

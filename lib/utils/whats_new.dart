@@ -72,10 +72,10 @@ Future<String> getDeviceReleaseTag() async {
 Future<Map?> getReleaseInfo(String? releaseTag) async {
   try {
     String url =
-        'https://api.github.com/repos/lanis-mobile/lanis/releases/latest';
+        'https://api.github.com/repos/Palexi-Debug/Test/releases/latest';
     if (releaseTag != null) {
       url =
-          'https://api.github.com/repos/lanis-mobile/lanis/releases/tags/$releaseTag';
+          'https://api.github.com/repos/Palexi-Debug/Test/releases/tags/$releaseTag';
     }
     final response = await Dio().get(url);
     return response.data is Map ? response.data as Map : null;
@@ -244,23 +244,10 @@ class NewUpdateAvailableDialog extends StatelessWidget {
 }
 
 Future<void> launchStore({BuildContext? context}) async {
-  if (!(Platform.isAndroid || Platform.isIOS)) return;
-  final storeUri = Uri.parse(
-    Platform.isAndroid
-        ? "market://details?id=io.github.alessioc42.sph"
-        : "https://apps.apple.com/app/id6511247743",
-  );
-  final opened = await safeLaunchUrl(
-    storeUri,
+  // Eigene App: Updates kommen von der Release-Seite dieses Projekts.
+  await safeLaunchUrl(
+    Uri.parse("https://github.com/Palexi-Debug/Test/releases"),
     context: context,
     mode: LaunchMode.externalApplication,
-  );
-  if (opened) return;
-  await safeLaunchUrl(
-    Uri.parse(
-      Platform.isAndroid
-          ? "https://play.google.com/store/apps/details?id=io.github.alessioc42.sph"
-          : "https://apps.apple.com/app/id6511247743",
-    ),
   );
 }

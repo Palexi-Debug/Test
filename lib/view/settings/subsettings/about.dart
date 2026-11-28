@@ -131,7 +131,7 @@ class _AboutSettingsState extends ConsumerSettingsColoursState<AboutSettings> {
       title: (context) => AppLocalizations.of(context).githubRepository,
       iconData: Icons.code_outlined,
       onTap: (context) => safeLaunchUrl(
-        Uri.parse("https://github.com/alessioC42/lanis-mobile"),
+        Uri.parse("https://github.com/Palexi-Debug/Test"),
         context: context,
       ),
     ),
@@ -148,7 +148,7 @@ class _AboutSettingsState extends ConsumerSettingsColoursState<AboutSettings> {
       iconData: Icons.add_comment_outlined,
       onTap: (context) => safeLaunchUrl(
         Uri.parse(
-          "https://github.com/alessioC42/lanis-mobile/issues/new/choose",
+          "https://github.com/Palexi-Debug/Test/issues/new",
         ),
         context: context,
       ),
@@ -157,7 +157,7 @@ class _AboutSettingsState extends ConsumerSettingsColoursState<AboutSettings> {
       title: (context) => AppLocalizations.of(context).latestRelease,
       iconData: Icons.update_outlined,
       onTap: (context) => safeLaunchUrl(
-        Uri.parse("https://github.com/alessioC42/lanis-mobile/releases/latest"),
+        Uri.parse("https://github.com/Palexi-Debug/Test/releases"),
         context: context,
       ),
     ),
@@ -212,6 +212,16 @@ class _AboutSettingsState extends ConsumerSettingsColoursState<AboutSettings> {
         return getContributors();
       },
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Text(
+            'Inoffizieller Open-Source-Client für die Philipp-Reis-Schule '
+            '(Schulportal Hessen), basierend auf Lanis Mobile.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

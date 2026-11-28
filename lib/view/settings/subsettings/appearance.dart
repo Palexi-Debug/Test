@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lanis/utils/look.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -332,7 +333,32 @@ class _LookSectionState extends ConsumerState<_LookSection> {
     return list;
   }
 
-  void _set(String key, String value) => setState(() => _p[key] = value);
+  /// Speichert jede Änderung sofort (bleibt nach Neustart erhalten). `_p`
+  /// hält nur kurz die Werte, bis das Theme neu gebaut wurde, damit Regler
+  /// und Auswahl ohne Verzögerung reagieren.
+  void _set(String key, String value) {
+    final shared = ref.read(sharedOverAccountSettingsProvider);
+    shared.setString(key, value);
+    setState(() => _p[key] = value);
+    // Theme gebündelt neu bauen (Regler feuern sehr oft).
+    _themeDebounce?.cancel();
+    _themeDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) notifyThemeChanged(ref);
+    });
+  }
+
+  Timer? _themeDebounce;
+
+  @override
+  void dispose() {
+    if (_themeDebounce?.isActive ?? false) {
+      _themeDebounce!.cancel();
+      try {
+        notifyThemeChanged(ref);
+      } catch (_) {}
+    }
+    super.dispose();
+  }
 
   /// Verschiebt einen Eintrag der Leiste an die Stelle eines anderen.
   void _reorder(String from, String to) {
@@ -342,15 +368,6 @@ class _LookSectionState extends ConsumerState<_LookSection> {
     if (i < 0 || j < 0 || i == j) return;
     list.insert(j, list.removeAt(i));
     _set('nav-order', list.join(','));
-  }
-
-  void _apply() {
-    final shared = ref.read(sharedOverAccountSettingsProvider);
-    for (final e in _p.entries) {
-      shared.setString(e.key, e.value);
-    }
-    setState(_p.clear);
-    notifyThemeChanged(ref);
   }
 
   void _resetAll() {
@@ -418,37 +435,16 @@ class _LookSectionState extends ConsumerState<_LookSection> {
             controls: Builder(builder: _navControls),
           ),
         ),
-        if (_p.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('Übernehmen'),
-                    onPressed: _apply,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => setState(_p.clear),
-                  child: const Text('Verwerfen'),
-                ),
-              ],
-            ),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              'Änderungen unten erscheinen zuerst hier in der Vorschau und '
-              'gelten erst nach "Übernehmen".',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Text(
+            'Änderungen werden sofort gespeichert und nach einem Neustart '
+            'wiederhergestellt.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
             ),
           ),
+        ),
         title('Eigene Farbe'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -581,7 +577,7 @@ class _LookSectionState extends ConsumerState<_LookSection> {
   }
 }
 
-/// Kleine Nachbildung der App mit den noch nicht übernommenen Werten.
+/// Kleine Nachbildung der App mit den aktuellen Werten.
 class _Preview extends StatelessWidget {
   final Color seed;
   final double radius;

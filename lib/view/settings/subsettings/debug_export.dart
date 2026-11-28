@@ -107,7 +107,7 @@ class _DebugExportState extends ConsumerState<DebugExport> {
             leading: Icon(Icons.contact_mail),
             title: Text('Mit wem hast du Kontakt?'),
             subtitle: Text(
-              'Wenn du Debug-Daten exportierst, stelle sicher, dass du sie ausschließlich an lanis-mobile@alessioc42.dev sendest. Diese E-Mail-Adresse wird von dem Hauptentwickler betreut. Sende die Daten auf keinen Fall an andere E-Mail-Adressen oder über andere Wege!',
+              'Wenn du Debug-Daten exportierst, schicke sie nur direkt an den Entwickler dieser App (nicht öffentlich als GitHub-Issue, weil sie sensible Daten enthalten können). Schwärze vorher Namen und Schulangaben, wenn du sie doch anhängen willst.',
             ),
           ),
           const Divider(),

@@ -1,3 +1,4 @@
+import 'package:lanis/core/school_schedule.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -404,8 +405,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           if (n == 0) return 'Heute keine Vertretung';
           final head = n == 1 ? '1 Vertretung heute' : '$n Vertretungen heute';
           // Unterrichtszeiten der Schule (Beginn/Ende je Stunde, in Minuten)
-          const starts = [480, 525, 595, 640, 705, 750, 840, 880, 925];
-          const ends = [525, 570, 640, 685, 750, 795, 880, 920, 965];
+          final starts = SchoolSchedule.starts;
+          final ends = SchoolSchedule.ends;
           final nowMin = now.hour * 60 + now.minute;
           String clean(Object? v) {
             final t = (v ?? '').toString().replaceAll(RegExp(r'<[^>]*>'), '').trim();
