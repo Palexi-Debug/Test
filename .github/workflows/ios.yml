@@ -16,6 +16,12 @@ jobs:
           fetch-depth: 0
       - name: Build-Nummer (Anzahl Commits)
         run: echo "BUILD_ID=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+      - name: Neuestes Xcode wählen (für Liquid Glass / iOS-26-SDK)
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          if [ -n "$LATEST" ]; then sudo xcode-select -s "$LATEST"; fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
       - name: Projekt erzeugen
         run: |
           brew install xcodegen

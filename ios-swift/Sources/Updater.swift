@@ -20,13 +20,20 @@ enum Updater {
             guard let list = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
                 return "Update-Antwort nicht lesbar."
             }
+            // Nur Releases mit Tag "ios-N" UND einer .ipa-Datei zählen. Die
+            // Liste wird komplett durchsucht, damit Releases anderer
+            // Plattformen (build-, windows-, macos-) nie stören.
             var best: (Int, String)?
             for r in list {
-                guard let tag = r["tag_name"] as? String, tag.hasPrefix("ios-"),
+                guard (r["draft"] as? Bool) != true,
+                      let tag = r["tag_name"] as? String, tag.hasPrefix("ios-"),
                       let n = Int(tag.dropFirst(4)) else { continue }
+                let assets = (r["assets"] as? [[String: Any]]) ?? []
+                guard assets.contains(where: { ($0["name"] as? String)?.lowercased().hasSuffix(".ipa") == true })
+                else { continue }
                 if best == nil || n > best!.0 { best = (n, (r["html_url"] as? String) ?? "") }
             }
-            guard let b = best else { return "Noch kein iOS-Release gefunden." }
+            guard let b = best else { return "Noch kein iOS-Release mit .ipa gefunden." }
             if b.0 > currentBuild {
                 if let u = URL(string: b.1) { await UIApplication.shared.open(u) }
                 return "Neue Version (Build \(b.0)) verfügbar – Release-Seite geöffnet."

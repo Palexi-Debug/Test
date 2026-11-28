@@ -1,5 +1,81 @@
 import SwiftUI
 
+// MARK: - Liquid-Glass-Design
+
+/// Transluzente Karte. Mit dem neuesten SDK (iOS 26) echtes Liquid Glass
+/// (`glassEffect`), sonst Material mit feiner Lichtkante und weichem Schatten.
+struct GlassCard: ViewModifier {
+    var tint: Color?
+    var cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            content
+                .background(shape.fill((tint ?? .clear).opacity(tint == nil ? 0 : 0.16)))
+                .glassEffect(.regular, in: shape)
+        } else {
+            fallback(content, shape)
+        }
+        #else
+        fallback(content, shape)
+        #endif
+    }
+
+    private func fallback(_ content: Content, _ shape: RoundedRectangle) -> some View {
+        content
+            .background(shape.fill((tint ?? .clear).opacity(tint == nil ? 0 : 0.14)))
+            .background(.ultraThinMaterial, in: shape)
+            .overlay(
+                shape.strokeBorder(
+                    LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.06)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 5)
+    }
+}
+
+extension View {
+    func glassCard(tint: Color? = nil, cornerRadius: CGFloat = 18) -> some View {
+        modifier(GlassCard(tint: tint, cornerRadius: cornerRadius))
+    }
+}
+
+/// Farbiger Hintergrund, damit das Glas etwas zum Durchscheinen hat.
+struct GlassBackdrop: View {
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+            LinearGradient(
+                colors: [Color.accentColor.opacity(0.28), Color.purple.opacity(0.14), Color.clear],
+                startPoint: .topLeading, endPoint: .bottom)
+            Circle().fill(Color.accentColor.opacity(0.18)).frame(width: 280).blur(radius: 70)
+                .offset(x: 140, y: -260)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// Schwebendes, pulsierendes Badge für die laufende Stunde.
+struct NowBadge: View {
+    @State private var pulse = false
+
+    var body: some View {
+        Text("JETZT")
+            .font(.caption2.bold())
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(Capsule().fill(Color.green))
+            .foregroundColor(.white)
+            .scaleEffect(pulse ? 1.08 : 1.0)
+            .shadow(color: .green.opacity(0.55), radius: pulse ? 9 : 3)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
+            }
+    }
+}
+
 // MARK: - Anmeldung
 
 struct LoginView: View {
@@ -36,6 +112,8 @@ struct LoginView: View {
                     .disabled(model.loading || school.isEmpty || user.isEmpty || password.isEmpty)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(GlassBackdrop())
             .navigationTitle("Anmelden")
         }
     }
@@ -71,9 +149,11 @@ struct StatusBanner: View {
                 }
             }
             .font(.footnote)
-            .padding(8)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.orange.opacity(0.2))
+            .glassCard(tint: .orange, cornerRadius: 14)
+            .padding(.horizontal)
+            .padding(.top, 6)
         }
     }
 }
@@ -145,9 +225,18 @@ struct TimetableView: View {
         return wd == dayIndex && m >= l.startMin && m < l.endMin
     }
 
+    private func cardTint(_ st: LessonState, now: Bool) -> Color? {
+        switch st {
+        case .cancelled: return .red
+        case .changed: return .orange
+        case .normal: return now ? .green : nil
+        }
+    }
+
     @ViewBuilder
     private func lessonRow(_ l: Lesson, dayIndex: Int, _ t: Timetable) -> some View {
         let st = state(l, dayIndex: dayIndex, t)
+        let now = isNow(l, dayIndex: dayIndex)
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .trailing, spacing: 0) {
                 Text(timeString(l.startMin)).font(.caption.monospacedDigit())
@@ -174,10 +263,11 @@ struct TimetableView: View {
                 if isCancelled(st) { Text("Entfällt").font(.caption.bold()).foregroundColor(.red) }
             }
             Spacer(minLength: 0)
+            if now { NowBadge() }
         }
-        .opacity(isCancelled(st) ? 0.5 : 1)
-        .padding(.vertical, 4)
-        .listRowBackground(isNow(l, dayIndex: dayIndex) ? Color.accentColor.opacity(0.15) : nil)
+        .opacity(isCancelled(st) ? 0.6 : 1)
+        .padding(12)
+        .glassCard(tint: cardTint(st, now: now))
     }
 
     private func isCancelled(_ s: LessonState) -> Bool {
@@ -203,9 +293,8 @@ struct TimetableView: View {
                         ScrollView(.horizontal) {
                             HStack(alignment: .top, spacing: 16) {
                                 ForEach(0..<dayCount, id: \.self) { d in
-                                    VStack(alignment: .leading) {
-                                        Text(dayNames[d]).font(.headline)
-                                        Divider()
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text(dayNames[d]).font(.headline).padding(.horizontal, 4)
                                         ForEach(lessons(t, d)) { l in lessonRow(l, dayIndex: d, t) }
                                         Spacer(minLength: 0)
                                     }
@@ -218,10 +307,13 @@ struct TimetableView: View {
                             ForEach(0..<dayCount, id: \.self) { Text(dayShort[$0]).tag($0) }
                         }
                         .pickerStyle(.segmented).padding(.horizontal).padding(.vertical, 8)
-                        List {
-                            let ls = lessons(t, day)
-                            if ls.isEmpty { Text("Keine Stunden").foregroundColor(.secondary) }
-                            ForEach(ls) { l in lessonRow(l, dayIndex: day, t) }
+                        ScrollView {
+                            LazyVStack(spacing: 10) {
+                                let ls = lessons(t, day)
+                                if ls.isEmpty { Text("Keine Stunden").foregroundColor(.secondary).padding(.top, 30) }
+                                ForEach(ls) { l in lessonRow(l, dayIndex: day, t) }
+                            }
+                            .padding(.horizontal).padding(.bottom, 16)
                         }
                     }
                 } else {
@@ -231,6 +323,7 @@ struct TimetableView: View {
                     Spacer()
                 }
             }
+            .background(GlassBackdrop())
             .navigationTitle(tt.map { $0.weekBadge.isEmpty ? "Stundenplan" : "Stundenplan · \($0.weekBadge)" } ?? "Stundenplan")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -267,16 +360,26 @@ struct SubstitutionsView: View {
         return order.map { ($0, map[$0] ?? []) }
     }
 
+    /// Rot = Entfall, Blau = Raumwechsel, Orange = sonstige Änderung.
+    private func substitutionTint(_ s: Substitution) -> Color {
+        if s.isCancel { return .red }
+        if s.art.lowercased().contains("raum") { return .blue }
+        return .orange
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 StatusBanner(date: model.snapshot.substitutionsAt)
-                List {
-                    if grouped.isEmpty {
-                        Text(model.loading ? "Lade …" : "Keine Vertretungen").foregroundColor(.secondary)
-                    }
-                    ForEach(grouped, id: \.0) { date, items in
-                        Section(date) {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        if grouped.isEmpty {
+                            Text(model.loading ? "Lade …" : "Keine Vertretungen")
+                                .foregroundColor(.secondary).padding(.top, 30)
+                                .frame(maxWidth: .infinity)
+                        }
+                        ForEach(grouped, id: \.0) { date, items in
+                            Text(date).font(.headline).padding(.horizontal, 4).padding(.top, 6)
                             ForEach(items) { s in
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack {
@@ -284,7 +387,7 @@ struct SubstitutionsView: View {
                                         Text(s.fach.isEmpty ? s.fachAlt : s.fach)
                                         Spacer()
                                         Text(s.art).font(.caption.bold())
-                                            .foregroundColor(s.isCancel ? .red : .orange)
+                                            .foregroundColor(substitutionTint(s))
                                     }
                                     Text([s.klasse, s.vertreter.isEmpty ? "" : "Vertr. \(s.vertreter)",
                                           s.raum.isEmpty ? "" : "Raum \(s.raum)"]
@@ -292,12 +395,17 @@ struct SubstitutionsView: View {
                                         .font(.subheadline).foregroundColor(.secondary)
                                     if !s.hinweis.isEmpty { Text(s.hinweis).font(.footnote) }
                                 }
-                                .opacity(s.isCancel ? 0.6 : 1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .opacity(s.isCancel ? 0.7 : 1)
+                                .padding(12)
+                                .glassCard(tint: substitutionTint(s))
                             }
                         }
                     }
+                    .padding(.horizontal).padding(.bottom, 16)
                 }
             }
+            .background(GlassBackdrop())
             .navigationTitle("Vertretungen")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -334,6 +442,8 @@ struct SettingsView: View {
                         .font(.footnote).foregroundColor(.secondary)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(GlassBackdrop())
             .navigationTitle("Einstellungen")
         }
     }

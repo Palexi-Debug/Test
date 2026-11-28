@@ -1,15 +1,22 @@
-# Schulportal – Philipp-Reis-Schule
+# Schulportal (iOS / iPadOS) – Philipp-Reis-Schule
 
-Eigene App-Oberfläche für das Schulportal Hessen (Schule 6110).
+Native SwiftUI-App für das Schulportal Hessen (Schule 6110). Inoffizieller
+Open-Source-Client, nicht von der Schule oder dem Schulportal Hessen betrieben.
 
 ## Basiert auf Lanis Mobile
 
 Die Anbindung an das Schulportal stammt vom freien Projekt
-[Lanis Mobile](https://github.com/lanis-mobile/lanis) (GPLv3). Dieses Projekt
-steht deshalb ebenfalls unter der GPLv3, der Quellcode liegt in diesem Repository.
-Danke an alle Mitwirkenden von Lanis Mobile!
+[Lanis Mobile](https://github.com/lanis-mobile/lanis) (GPLv3). Dieses Projekt steht
+deshalb ebenfalls unter der GPLv3.
 
-## Builds
+## Aufbau
 
-Jeder Push auf `main` baut per GitHub Actions eine APK und veröffentlicht sie als
-Release (`build-<Nr>`). Die App kann unter Einstellungen → Version nach Updates suchen.
+- `ios-swift/` – XcodeGen-Projekt (`project.yml`) und Quellcode (`Sources/`), SwiftSoup per SPM.
+- `.github/workflows/ios.yml` – baut mit dem neuesten Xcode eine unsignierte IPA (iPhone + iPad) und
+  veröffentlicht sie als Release `ios-<Nr>`.
+- Die Android-/Wear-App, Garmin und die Desktop-Builds liegen auf den Branches `main`, `garmin`,
+  `windows`, `macos`.
+
+## Installieren
+
+IPA aus dem Release `ios-<Nr>` laden und per AltStore/Sideloadly signieren und installieren.
