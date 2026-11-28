@@ -264,36 +264,61 @@ class _StudentTimetableBetterViewState
                                   }),
                                 ),
                               ),
-                            IconButton(
-                              tooltip: 'Wochenübersicht / als Bild teilen',
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => WeekPreviewPage(
-                                    // Gefilterter Plan (nur die gewählte Woche,
-                                    // ohne ausgeblendete Stunden), sonst liegen
-                                    // G- und U-Stunden übereinander.
-                                    plan: data.timetableDays,
-                                    hours: timetable.hours ??
-                                        const <TimeTableRow>[],
-                                    weekStart: weekStart,
-                                    settings: settings,
-                                    weekBadge: selectedBadge,
+                            PopupMenuButton<String>(
+                              tooltip: 'Ansicht und Teilen',
+                              icon: (settings['single-day'] ?? true)
+                                  ? const Icon(Icons.view_week_outlined)
+                                  : const Icon(Icons.view_day_outlined),
+                              onSelected: (value) {
+                                if (value == 'toggle') {
+                                  updateSettings(
+                                    'single-day',
+                                    !(settings['single-day'] ?? true),
+                                  );
+                                } else if (value == 'share') {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => WeekPreviewPage(
+                                        // Gefilterter Plan (nur die gewählte
+                                        // Woche, ohne ausgeblendete Stunden).
+                                        plan: data.timetableDays,
+                                        hours:
+                                            timetable.hours ??
+                                            const <TimeTableRow>[],
+                                        weekStart: weekStart,
+                                        settings: settings,
+                                        weekBadge: selectedBadge,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                PopupMenuItem(
+                                  value: 'toggle',
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(
+                                      (settings['single-day'] ?? true)
+                                          ? Icons.view_week_outlined
+                                          : Icons.view_day_outlined,
+                                    ),
+                                    title: Text(
+                                      (settings['single-day'] ?? true)
+                                          ? 'Wochenansicht'
+                                          : 'Tagesansicht',
+                                    ),
                                   ),
                                 ),
-                              ),
-                              icon: const Icon(Icons.calendar_view_week_rounded),
-                            ),
-                            IconButton(
-                              tooltip: (settings['single-day'] ?? true)
-                                  ? 'Wochenansicht'
-                                  : 'Tagesansicht',
-                              onPressed: () => updateSettings(
-                                'single-day',
-                                !(settings['single-day'] ?? true),
-                              ),
-                              icon: (settings['single-day'] ?? true)
-                                  ? Icon(Icons.view_week_outlined)
-                                  : Icon(Icons.view_day_outlined),
+                                const PopupMenuItem(
+                                  value: 'share',
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(Icons.ios_share_rounded),
+                                    title: Text('Als Bild teilen'),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

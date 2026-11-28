@@ -10,7 +10,7 @@ import 'package:liblanis/liblanis.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// Wochenübersicht: der ganze Stundenplan (mit eingesetzten Vertretungen und
+/// Stundenplan als Bild: der ganze Stundenplan (mit eingesetzten Vertretungen und
 /// ausgegrauten Ausfällen) auf einen Blick. Über das Teilen-Symbol wird er als
 /// Bild (PNG) weitergegeben.
 class WeekPreviewPage extends StatefulWidget {
@@ -77,7 +77,7 @@ class _WeekPreviewPageState extends State<WeekPreviewPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const title = 'Wochenübersicht';
+    const title = 'Stundenplan als Bild'
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
