@@ -10,6 +10,8 @@ final class PortalClient: NSObject, URLSessionTaskDelegate {
     }
 
     private var cookies: [String: String] = [:]
+    /// Sitzungsschlüssel für verschlüsselte Nachrichten (nach dem RSA-Handshake).
+    var cryptoKey: Data?
     private let ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 SchulportalApp"
 
     private lazy var session: URLSession = {
@@ -94,6 +96,7 @@ final class PortalClient: NSObject, URLSessionTaskDelegate {
 
     func login(_ c: Credentials) async throws {
         cookies = [:]
+        cryptoKey = nil
         let down = "Der Bereich der pädagogischen Organisation steht Ihnen aktuell nicht zur Verfügung."
         let r0 = try await send("https://start.schulportal.hessen.de/")
         if r0.status == 503 || r0.body.contains(down) { throw PortalError.down }

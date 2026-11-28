@@ -64,6 +64,10 @@ struct Snapshot: Codable {
     var substitutions: [Substitution] = []
     var timetableAt: Date?
     var substitutionsAt: Date?
+    var events: [CalEvent]?
+    var eventsAt: Date?
+    var messages: [MessageHeader]?
+    var messagesAt: Date?
 }
 
 enum PortalError: LocalizedError {

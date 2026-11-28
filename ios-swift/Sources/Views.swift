@@ -126,12 +126,16 @@ struct RootView: View {
 
     var body: some View {
         TabView {
+            TodayView()
+                .tabItem { Label("Heute", systemImage: "sun.max") }
             TimetableView()
                 .tabItem { Label("Stundenplan", systemImage: "calendar") }
             SubstitutionsView()
                 .tabItem { Label("Vertretungen", systemImage: "arrow.left.arrow.right") }
-            SettingsView()
-                .tabItem { Label("Einstellungen", systemImage: "gearshape") }
+            MessagesView()
+                .tabItem { Label("Nachrichten", systemImage: "bubble.left.and.bubble.right") }
+            EventsView()
+                .tabItem { Label("Termine", systemImage: "calendar.badge.clock") }
         }
     }
 }
@@ -421,6 +425,9 @@ struct SubstitutionsView: View {
 
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
+    @EnvironmentObject var lock: AppLock
+    @Environment(\.dismiss) private var dismiss
+    @State private var lockError: String?
 
     var body: some View {
         NavigationStack {
@@ -432,19 +439,35 @@ struct SettingsView: View {
                     }
                     Button("Abmelden", role: .destructive) { model.logout() }
                 }
+                Section("Sicherheit") {
+                    Toggle("App-Sperre (Face ID / Code)", isOn: Binding(
+                        get: { lock.enabled },
+                        set: { on in
+                            Task {
+                                let ok = await lock.setEnabled(on)
+                                lockError = ok ? nil : "Die App-Sperre konnte nicht geändert werden. Ist am Gerät ein Code eingerichtet?"
+                            }
+                        }))
+                    if let e = lockError { Text(e).font(.footnote).foregroundColor(.red) }
+                }
                 Section("App") {
                     LabeledContent("Build", value: "\(Updater.currentBuild)")
                     Button("Nach Updates suchen") { Task { await model.checkForUpdate() } }
                     if let t = model.updateText { Text(t).font(.footnote).foregroundColor(.secondary) }
                 }
                 Section {
-                    Text("Eigene iOS-App (SwiftUI) – iPhone und iPad. Test-Version: Stundenplan und Vertretungsplan.")
+                    Text("Eigene iOS-App (SwiftUI) – iPhone und iPad. Inoffizieller Open-Source-Client für die Philipp-Reis-Schule. Enthalten: Heute, Stundenplan, Vertretungen, Nachrichten (lesen), Termine, App-Sperre.")
                         .font(.footnote).foregroundColor(.secondary)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(GlassBackdrop())
             .navigationTitle("Einstellungen")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Fertig") { dismiss() }
+                }
+            }
         }
     }
 }

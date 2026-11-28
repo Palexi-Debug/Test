@@ -1,6 +1,6 @@
 # Schulportal (iOS / iPadOS) – Philipp-Reis-Schule
 
-Native SwiftUI-App für das Schulportal Hessen (Schule 6110). Inoffizieller
+Native SwiftUI-App für das Schulportal Hessen (Schule 6110) mit Heute, Stundenplan, Vertretungen, Nachrichten (lesen), Termine und App-Sperre. Inoffizieller
 Open-Source-Client, nicht von der Schule oder dem Schulportal Hessen betrieben.
 
 ## Basiert auf Lanis Mobile

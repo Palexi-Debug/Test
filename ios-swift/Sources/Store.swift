@@ -127,8 +127,32 @@ final class AppModel: ObservableObject {
             snapshot.substitutionsAt = Date()
         } catch { problems.append("Vertretungen: \(error.localizedDescription)") }
 
+        do {
+            let cal = Calendar.current
+            let from = cal.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+            let to = cal.date(byAdding: .day, value: 200, to: Date()) ?? Date()
+            snapshot.events = try await client.calendar(from: from, to: to)
+            snapshot.eventsAt = Date()
+        } catch { problems.append("Termine: \(error.localizedDescription)") }
+
+        do {
+            snapshot.messages = try await client.messageHeaders()
+            snapshot.messagesAt = Date()
+        } catch { problems.append("Nachrichten: \(error.localizedDescription)") }
+
         Cache.save(snapshot)
         message = problems.isEmpty ? nil : problems.joined(separator: "\n")
+    }
+
+    /// Lädt eine ganze Unterhaltung (erneuert bei Bedarf die Sitzung).
+    func loadConversation(_ id: String) async throws -> Conversation {
+        do {
+            return try await client.conversation(id: id)
+        } catch {
+            guard let c = creds else { throw error }
+            try await client.login(c)
+            return try await client.conversation(id: id)
+        }
     }
 
     private func loadSubstitutions(_ c: Credentials, retry: Bool = true) async throws -> [Substitution] {
