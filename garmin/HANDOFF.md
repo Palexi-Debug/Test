@@ -59,3 +59,9 @@ Daten kommen automatisch vom Handy, Updates moeglichst automatisch.
 - Titel zeigt "Heute - G-Woche" (Feld `wk` vom Handy, in Storage gespeichert).
 - Vertretungen werden auf dem Handy in den Plan eingesetzt (garmin_sync.dart `_garminPlan`).
 - Update per USB: neue .prg aus dem Release `garmin-N` installieren.
+
+## Stand 2026-11-28 (0.1.5)
+
+- Neues optionales Feld `idx` im Handy-Payload (Index der laufenden/nächsten Stunde, aus `lib/core/school_schedule.dart` auf dem Handy). `DataStore.idx`/`idxFresh`; die Heute-Seite scrollt beim Start und bei jeder neuen Nachricht dorthin (ohne `idx` wie bisher per Uhrzeit).
+- Neue .prg per USB aus dem Release `garmin-N` installieren; die Handy-App sendet `idx` auch an ältere Uhr-Versionen (wird dort ignoriert).
+- Build-Status: nach dem Push in GitHub Actions prüfen.

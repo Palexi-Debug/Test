@@ -152,11 +152,20 @@ class MainView extends WatchUi.View {
         var viewH = h - BOTTOM - TOP;
         scrollMax = (size * rowH - viewH).toFloat();
         if (scrollMax < 0) { scrollMax = 0.0; }
-        if (!scrollInit) {
+        // Beim Start und bei jeder neuen Handy-Nachricht (idx) zur laufenden
+        // bzw. naechsten Stunde scrollen.
+        if (!scrollInit || DataStore.idxFresh) {
             var start = 0;
-            for (var i = 0; i < size; i++) {
-                if (DataStore.lessons[i]["e"] > now) { start = i; break; }
+            if (DataStore.idxFresh && DataStore.idx >= 0) {
+                start = DataStore.idx;
+            } else {
+                for (var i = 0; i < size; i++) {
+                    if (DataStore.lessons[i]["e"] > now) { start = i; break; }
+                }
             }
+            DataStore.idxFresh = false;
+            if (start > size - 1) { start = size - 1; }
+            if (start < 0) { start = 0; }
             scrollCur = (start * rowH).toFloat();
             if (scrollCur > scrollMax) { scrollCur = scrollMax; }
             scrollTarget = scrollCur;

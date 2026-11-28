@@ -5,12 +5,17 @@ import Toybox.System;
 // Aktuelle Daten. s/e = Start/Ende in Minuten seit 0 Uhr.
 module DataStore {
     // Muss zur version in manifest.xml passen.
-    const VERSION = "0.1.4";
+    const VERSION = "0.1.5";
 
     var live = false;
     var syncMin = -1;
     var week = "";
     var msgCount = 0;
+
+    // Vom Handy mitgeschickt: Index der laufenden/naechsten Stunde (-1 = keiner).
+    // idxFresh = true, bis die Heute-Seite ihn einmal zum Scrollen benutzt hat.
+    var idx = -1;
+    var idxFresh = false;
 
     var lessons = [
         {"s" => 480, "e" => 525, "n" => "Mathematik", "r" => "R 214"},
@@ -75,6 +80,14 @@ module DataStore {
         var wk = d["wk"];
         if (wk instanceof String) {
             week = wk;
+        }
+        var ix = d["idx"];
+        if (ix instanceof Number && ix >= 0) {
+            idx = ix;
+            idxFresh = true;
+        } else {
+            idx = -1;
+            idxFresh = false;
         }
         save();
     }
