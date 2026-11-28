@@ -27,3 +27,14 @@ Branches/Kanäle: siehe README. Ungetestet auf Geräten, sofern nicht anders ver
 - Garmin: eigene Stunden, Freund-Sync (braucht neue .prg).
 - iOS: Nachrichten, Kalender u. a. noch nicht portiert; App-Sperre/Widgets fehlen.
 - Test auf Geräten: Kachel-Ziehen (Breite+Höhe), Leiste verschieben, Uhr-Animationen, schlechtes Netz, Nachrichten (äöüß/#), G/U am Wochenende.
+
+## Stand 2026-11-28
+- Untere Leiste: Beschriftungen haben seitlichen Abstand und kleinere Schrift (`labelSmall`), damit "Stundenplan"/"Vertretungen" nicht mehr quetschen.
+- Aussehen-Einstellungen werden sofort gespeichert (kein "Übernehmen" mehr); Theme-Neuaufbau gebündelt (300 ms). Behebt: Animationen-Auswahl blieb nicht bestehen.
+- `lib/core/school_schedule.dart`: gemeinsame Unterrichtszeiten (Dashboard, Wear, Garmin-Sync `idx`).
+- Garmin-Sync: Bluetooth-Berechtigungen (Android 12+) im Manifest, `<queries>` für Garmin Connect, Laufzeit-Abfrage von `bluetoothConnect`, deutsche Fehlermeldungen, `idx` im Payload (Garmin-App 0.1.5 scrollt dorthin).
+- Updater: fragt `/releases` ab und filtert strikt auf `build-` (Handy und Uhr, Uhr mit arm64/arm32-ABI), Desktop auf `windows-`/`macos-` (öffnet die Release-Seite im Browser). `kIsPlayStore` (`--dart-define=PLAY_STORE=true`) schaltet Update-Suche, Download und die Update-Karte in `version_page.dart` ab. Kein eigenes Play-Store-Manifest (`REQUEST_INSTALL_PACKAGES` bleibt im normalen Manifest).
+- Wear-Akku: Applet-Prüfungen im Hintergrund laufen mit `Future.wait` parallel (Fehler einzelner Applets stoppen die anderen nicht); `RepaintBoundary` um Logo und Ringe.
+- Namespace und Kotlin-Package: `de.palexi.schulportal` (applicationId war schon so).
+- Links auf `Palexi-Debug/Test` (Issues/Releases), Fehlerberichte als GitHub-Issue statt Mail an Upstream; Hinweis "inoffizieller Client" in "Über" und "Version".
+- Build-Status: Push 7820334, CI-Ergebnis siehe GitHub Actions (Build APK + Wear OS APK).
